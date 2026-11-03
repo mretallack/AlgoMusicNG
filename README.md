@@ -103,7 +103,19 @@ Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
   behaviour (`rand() % n`, *not* two calls);
 * the per-song call order of `0x106256` for structure / phrase / rhythm /
   melody / arp / echo selection, using the original moduli
-  (`%17, %14, %24, %39, %8, %4, %70, %9`).
+  (`%17, %14, %24, %39, %8, %4, %70, %9`);
+* the **sample-drawer scan** (`0x1094b4`, AmigaDOS patterns) and the sample
+  pickers (`0x109bfa`) whose `rand()%count` draws run *before* the sequencer;
+* the **whole RNG stream of `0x106256`** for a default run (transpose, the
+  arrangement/phrase permutations, the optional step-period and timing rolls,
+  the echo / rhythm-mix selectors and the four per-pattern selectors);
+* the **title builder `0x108816`** including template fall-through (case 1
+  falls into case 2) and the exact retry loops.
+
+The consequence: for the same seed the generated **song name** *and* **song
+length** now match the original — verified for 10 seeds in
+`tools/verify_groundtruth.py`. (The name is a downstream checksum of the entire
+RNG stream, so matching it means the stream is byte-exact.)
 
 Note on `0x10be8c` / `0x10bebe` / `0x10bf50`: these are **SAS/C runtime maths
 helpers**, not RNG consumers — `0x10bebe` is 32-bit unsigned division
@@ -111,15 +123,15 @@ helpers**, not RNG consumers — `0x10bebe` is 32-bit unsigned division
 the 16×16→32 multiply. The moduli are `rand() % n`; the remainder is what every
 caller reads. So they shift *nothing*.
 
-**Still needed for *bit-identical* output:**
-1. a full line-by-line port of the sequencer `0x106256` (the per-step
-   chord/bass/melody/arp/drum note-table fill), including the implicit
-   `rand() % n` sites and the `0x10bf50` timing divider — this is the part that
-   consumes the bulk of the RNG stream and therefore fixes the song-name too,
-   because `0x108816` (title builder) runs *after* `0x106256` on the same
-   stream (it rolls adjective, noun, then one of 14 templates);
-2. the speech path `0x10ab38`/`0x10b0a2` (only with the `SPEECH` switch);
-3. Paula period/volume/offset timing of the player `0x1073e6` for exact audio
+**Still needed for *note-level* bit-identical output:**
+1. the per-step playback-table fill of `0x106256` (chord/bass/arp/melody period
+   + voice + amplitude, drum triggers, the `0x10bf50` timing divider's use) —
+   these tables are what the player `0x1073e6` feeds to Paula.  The renderer
+   currently *approximates* them from the selected phrases;
+2. the `0x10e946 != 0` "random melody" variant of `0x106256` (the melody-roll
+   retry loops) and the `0x10e92e`/`0x10e93e` arrangement-letter handling;
+3. the speech path `0x10ab38`/`0x10b0a2` (only with the `SPEECH` switch);
+4. Paula period/volume/offset timing of the player `0x1073e6` for exact audio
    (the new `render_samples` already plays the *real* 8SVX bank, so the timbre
    is right; the sample-level timing/offsets are not yet bit-exact).
 

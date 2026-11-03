@@ -69,8 +69,26 @@ drawer entries matching the pattern:
 these draws shift the whole RNG stream.  Our Python port must replay them to
 land on the same title.
 
+## Verifying the port
+
+```sh
+python3 tools/verify_groundtruth.py
+```
+
+replays the sample pick + sequencer RNG stream + title for every seed in the
+table and checks both the **song name** and the **length** (the length is
+`num_patterns * 64` 16th-notes at the configured BPM = 160).  It currently
+reports `10/10 seeds match`.
+
+To add a reference seed, capture its `LOG=` line with the recipe above and add
+it to the `GROUND_TRUTH` dict in `tools/verify_groundtruth.py` (and the table
+here).  Watch the `Length` column: it is a useful independent check on
+`num_patterns` because it does not depend on the title roll.
+
 ## Status
 
-* `LOG=` line now obtainable (vamos block removed by the ExAll patch).
-* Full sequencer `FUN_00106256` port still outstanding; once done, compare the
-  generated title against the table above for the same seed.
+* `LOG=` line obtainable (vamos block removed by the ExAll patch).
+* Sample-pick counts + sequencer RNG order + title builder are byte-exact
+  (`algomusic/song.py`), confirmed by name *and* length for 10/10 seeds.
+* Note-level playback tables of `FUN_00106256` (periods/voices/amplitudes) are
+  still approximated by the renderer.

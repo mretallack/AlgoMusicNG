@@ -1,8 +1,10 @@
 """A modern (Linux/Python) re-implementation of the Amiga program AlgoMusic.
 
-The RNG and the musical database (note/drum/speech patterns and the song-name
-word lists) are recovered from the original 68000 binary; the generation flow
-is reconstructed from the decompiled control flow.
+The RNG, the musical database (note/drum/speech patterns and the song-name word
+lists) and the whole generation RNG stream are recovered from the original
+68000 binary.  For a given seed the produced **song name and length match the
+original** (verified for 10 seeds by `tools/verify_groundtruth.py`); note-level
+audio is still an approximation.
 
 Public API:
     Generator(seed).generate() -> Song
@@ -11,8 +13,8 @@ Public API:
 from .rng import Rng
 from .song import Generator, Song, load_db
 from .render import render, render_samples
-from .samples import SampleBank
+from .samples import SampleBank, scan_drawers
 
 __all__ = ["Rng", "Generator", "Song", "load_db", "render", "render_samples",
-           "SampleBank"]
-__version__ = "0.2.0"
+           "SampleBank", "scan_drawers"]
+__version__ = "0.3.0"

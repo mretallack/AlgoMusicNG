@@ -57,6 +57,54 @@ def load_8svx(path):
     return smp, rate, loop_start, loop_len
 
 
+# The drawer scan performed by FUN_001094b4: (category, drawer, AmigaDOS
+# pattern).  FUN_001095ea then calls FUN_00109bfa for each category in this
+# order to *pick* one entry -- each pick consumes RNG, and the number of
+# drawer entries matching the pattern is the modulus.  Keeping these exact is
+# essential for a byte-identical RNG stream (and hence song title).
+DRAWERS = [
+    (0, "Bass", "~(.Readme)"),
+    (3, "Chords", "#?Maj"),
+    (2, "Acid", "~(.Readme)"),
+    (1, "Melody", "~(.Readme)"),
+    (4, "Rhythm", "Base-#?"),
+    (5, "Rhythm", "Clap-#?"),
+    (6, "Rhythm", "Hihat-#?"),
+    (7, "Rhythm", "Snare-#?"),
+    (8, "Rhythm", "BreakBeat-#?"),
+]
+
+# order in which FUN_001095ea draws one sample per category
+SAMPLE_PICK_ORDER = [3, 1, 2, 0, 8, 4, 5, 6, 7]
+
+
+def scan_drawers(root=DEFAULT_ROOT):
+    """Return ``{cat: [names]}`` exactly as FUN_001094b4's ExAll scan sees it.
+
+    Entries are filtered by the AmigaDOS pattern with case folded
+    (ParsePatternNoCase); ``.``/``..`` are not real FFS entries so they are
+    excluded.  The ordering is deterministic (sorted) rather than the Amiga's
+    on-disk hash order -- the *count* is what drives the RNG, the order only
+    selects which concrete sample is used.
+    """
+    from .amigapattern import pattern_parse, pattern_match
+
+    res = {}
+    for cat, drawer, pat in DRAWERS:
+        d = os.path.join(root, drawer)
+        try:
+            names = [
+                n
+                for n in os.listdir(d)
+                if n not in (".", "..") and os.path.isfile(os.path.join(d, n))
+            ]
+        except OSError:
+            names = []
+        pat_obj = pattern_parse(pat, ignore_case=True)
+        res[cat] = sorted(n for n in names if pattern_match(pat_obj, n))
+    return res
+
+
 class SampleBank:
     """A small, deterministic selection of real AlgoMusic instruments."""
 

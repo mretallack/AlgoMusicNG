@@ -119,10 +119,58 @@ plus the 12-entry period table at `0x10e700` (`[1050,991,935,882,833,786,...]`,
 one semitone step ≈ 2^(-1/12)).  Melody interval tables: `0x10e730` (6),
 `0x10e740` (14, major-ish), `0x10e75c` (14, minor-ish).
 
-## Status
+## The RNG stream is ported and verified
 
-Not yet ported.  The design is decoded; what remains is transcribing the ~1300
-instructions of the step loop faithfully (the conditional `rand()` rolls, the
-transpose bookkeeping and the table writes).  Because the title `0x108816` runs
-on the post-`0x106256` stream, this is the last hard blocker for a matching
-song name / `LOG=` line.
+The *decisions* of `0x106256` are now ported (in `algomusic/song.py`), which is
+all the RNG stream needs.  Two key simplifications, both proven from the
+disassembly:
+
+1. **With a default (no-prefs) run, `0x10e946 == 0`.**  The whole "melody roll"
+   block (the retry loops around `0x106f78..0x1070ac`, which is where
+   `0x106f78 %5`, `0x106fa0/0x106fc8/0x106fde %6`, `0x106ff8 &1`,
+   `0x107082 &0xf` live) is behind `if (_DAT_0010e946 == 0) { simple } else {…
+   rolls …}`.  So those sites do **not** execute for a plain `INIT $seed` run.
+2. **`0x113180[0..2]` is all zero**, so the per-voice init (`0x1062aa`, which
+   would draw `rand()%0x113180[i]` and `rand()&1` per voice) draws nothing.
+
+So the RNG consumption of the sequencer is exactly:
+
+```
+rand() % 6 - 3                       # global transpose           0x10625e
+FUN_001086dc()                       # reset sticky selectors     0x106286
+g = perm9()                          # 0x108794 -> 0..8           0x10634a
+phrase = song_structs[perm70()]      # 0x108710 -> 0..69          0x106378
+step  = 10*(phrase[0]-'0')+(phrase[1]-'0')                      0x1063dc
+num_patterns = strlen(song_structures[3*g]) >> 2
+if 4 < step < 0x40:  rand() & 7      # halve/double               0x106426
+timing = (len(phrase)>>2) * step                                0x106464
+while timing <= 0x20: timing <<= 1
+timing <<= 1
+if timing < 0x100:   rand() & 1                                 0x106498
+echo = sel(6,8)                      # 0x10861c                   0x1064e8
+rmix = sel(5,4)                                                 0x106512
+for each of num_patterns:
+    sel(0,0x11); sel(1,0x0e); sel(3,0x18); sel(4,0x27)          0x106536
+```
+
+Verified by `tools/verify_groundtruth.py`: the resulting *title* (rolled last by
+`0x108816`) and the *song length* match the original for 10/10 seeds.
+
+## Still outstanding (for sample-level audio, not for the RNG stream)
+
+The step loop also writes the per-step playback tables (chord/bass/arp/melody
+periods, voices, amplitudes, drum triggers) at `0x119198`, `0x11a998`,
+`0x11d998`, `0x116198`, `0x111170` …  Those are **not yet ported**; the
+renderer approximates them.  Likewise the `0x10e946 != 0` melody-roll variant,
+the speech path (`0x10ab38`/`0x10b0a2`, `SPEECH` only) and `0x10e92e`/`0x10e93e`
+arrangement-letter handling are not reproduced.
+
+## How the port was verified
+
+1. `tools/patch_vamos_exall.py` lets the original reach the play loop and emit
+   `LOG=` (see `docs/groundtruth.md`).
+2. A standalone experiment replayed sample-pick + sequencer RNG + title and
+   compared the title against the `LOG=` table — 10/10 on the first try, which
+   confirms the sample-pick counts, the selector logic and the RNG site order.
+3. That logic was folded into `algomusic/song.py`; the length was then also
+   confirmed (`num_patterns*64` 16th-notes at the BPM).

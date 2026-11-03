@@ -108,10 +108,25 @@ class Song:
         self.finetune = 100
         self.patterns = []      # list of dicts with per-voice events
         self.num_patterns = 0
+        self.picks = {}         # {cat: (index, sample name)} from FUN_00109bfa
+        self.transpose = 0      # global transpose (rand()%6-3)
+        self.arrangement = 0    # perm9() result (0..8)
+        self.arrangement_phrases = []
+        self.phrase_index = 0   # perm70() result (0..69)
+        self.step_period = 16   # local_30
+        self.timing = 0         # local_90
 
     @property
     def total_steps(self):
         return self.num_patterns * 64
+
+    @property
+    def duration(self):
+        """Song length in seconds, as the original's LOG= line reports it.
+
+        ``num_patterns * 64 steps`` at a 16th-note step (``60/bpm/4`` s).
+        """
+        return self.total_steps * 60.0 / self.bpm / 4.0
 
 
 class Selectors:
@@ -216,45 +231,40 @@ class Generator:
     def title(self):
         """Faithful port of the title builder 0x108816.
 
-        The binary rolls, in this order: adjective, noun, template (14 of them),
-        then - for the templates that need them - extra adjective/noun rolls
-        (with anti-repeat retry loops of at most 20 tries).  The *order* matters
-        because it consumes the same RNG stream that 0x106256 left behind.
+        Rolls adjective, noun, then one of 14 templates.  Templates 3/10/11/12/13
+        capitalise the adjective (the binary mutates the table entry in place;
+        only the comparison is by pointer, so index comparison is equivalent).
+        Extra noun/adjective rolls use the binary's retry loop verbatim: roll,
+        and if it repeats the avoided index retry while a counter < 20 -- i.e. at
+        most 21 rolls.  Template 1 falls through into 2 in the binary, so it too
+        produces "Another %s %s".
         """
         adjs = self.db["adjectives"]
         nouns = self.db["nouns"]
+        rng = self.rng
 
-        adj = adjs[self.rng.rand() % len(adjs)]
-        noun = nouns[self.rng.rand() % len(nouns)]
-        t = self.rng.rand() % 14
+        ai = rng.rand() % len(adjs)
+        ni = rng.rand() % len(nouns)
+        t = rng.rand() % 14
+        adj, noun = adjs[ai], nouns[ni]
 
         def cap(s):
             return s[:1].upper() + s[1:]
 
-        def is_vowel_start(s):
-            return s[:1].lower() in "aeiou"
-
-        def roll_noun(avoid):
-            n = None
-            for _ in range(20):
-                n = nouns[self.rng.rand() % len(nouns)]
-                if n != avoid:
-                    break
-            return n
-
-        def roll_adj(avoid):
-            a = None
-            for _ in range(20):
-                a = adjs[self.rng.rand() % len(adjs)]
-                if a not in avoid:
-                    break
-            return a
+        def roll(tab, avoid, max_extra=20):
+            u = 0
+            while True:
+                i = rng.rand() % len(tab)
+                if i not in avoid:
+                    return i
+                more = u < max_extra
+                u += 1
+                if not more:
+                    return i
 
         if t == 0:
             return "The %s %s" % (adj, noun)
-        if t == 1:
-            return ("An %s %s" if is_vowel_start(adj) else "A %s %s") % (adj, noun)
-        if t == 2:
+        if t in (1, 2):
             return "Another %s %s" % (adj, noun)
         if t == 3:
             return "%s %s" % (cap(adj), noun)
@@ -267,65 +277,132 @@ class Generator:
         if t == 7:
             return "Follow the %s %s" % (adj, noun)
         if t == 8:
-            return "My %s is your %s" % (noun, roll_noun(noun))
+            return "My %s is your %s" % (noun, nouns[rng.rand() % len(nouns)])
         if t == 9:
-            noun2 = roll_noun(noun)
-            adj2 = roll_adj((adj,))
-            return "The %s %s and the %s %s" % (adj, noun, adj2, noun2)
+            n2 = roll(nouns, (ni,))
+            a2 = roll(adjs, (ai,))
+            return "The %s %s and the %s %s" % (adj, noun, adjs[a2], nouns[n2])
         if t == 10:
             return "%s %s in space" % (cap(adj), noun)
         if t == 11:
-            return "%s and %s" % (adj, roll_adj((adj,)))
+            return "%s and %s" % (cap(adj), adjs[roll(adjs, (ai,))])
         if t == 12:
             return "%s %s strikes back" % (cap(adj), noun)
         if t == 13:
-            adj2 = roll_adj((adj,))
-            adj3 = roll_adj((adj, adj2))
-            return "%s, %s and %s" % (adj, adj2, adj3)
+            a2 = roll(adjs, (ai,))
+            a3 = roll(adjs, (ai, a2))
+            return "%s, %s and %s" % (cap(adj), adjs[a2], adjs[a3])
         return "The %s %s" % (adj, noun)
 
-    def generate(self, bpm=160, finetune=100, speech=False):
+    # ---- FUN_001095ea : sample-bank pick (consumes RNG) ----------------
+    def sample_pick(self, drawers=None):
+        """Replay FUN_00109bfa for every category, in call order.
+
+        Each pick draws ``rand() % count`` and retries while the result equals
+        the previous pick for that category (unless count == 1).  Returns the
+        dict ``{cat: (index, name)}``.
+        """
+        from .samples import scan_drawers, SAMPLE_PICK_ORDER
+
+        if drawers is None:
+            drawers = scan_drawers()
+        last = {}
+        picks = {}
+        for cat in SAMPLE_PICK_ORDER:
+            names = drawers.get(cat, [])
+            n = len(names)
+            if n == 0:
+                picks[cat] = (None, None)
+                continue
+            while True:
+                v = self.rng.rand() % n
+                if n == 1:
+                    break
+                if last.get(cat, 0) != v + 1:
+                    break
+            last[cat] = v + 1
+            picks[cat] = (v, names[v])
+        return picks
+
+    def generate(self, bpm=160, finetune=100, speech=False, drawers=None):
         s = Song()
         s.seed = self.seed
         s.bpm = bpm
         s.finetune = finetune
 
-        # --- func 0x106256 : per-song selection sequence -----------------
-        self.rng.rand()                            # leading rand() in 0x106256
-        self.sel.reset_selectors()                 # FUN_001086dc
-        struct = self.song_structure()             # FUN_00108794 -> 0..8
+        # === FUN_001095ea : sample-bank pick, *before* the generator ======
+        # (called from FUN_00105caa, after srand(), before the play loop)
+        s.picks = self.sample_pick(drawers)
+
+        # === FUN_00106256 : the sequencer ================================
+        rng = self.rng
+
+        # global transpose: rand() % 6 - 3                        (0x10625e)
+        s.transpose = rng.rand() % 6 - 3
+
+        # FUN_001086dc resets the sticky selectors                 (0x106286)
+        self.sel.reset_selectors()
+
+        # per-voice init (0x113180 is all zero in a default run, so no RNG)
+        # arrangement + phrase selection                          (0x10634a)
+        g = self.sel.perm9()                       # FUN_00108794 -> 0..8
         phrase_idx = self.sel.perm(                # FUN_00108710 -> 0..69
             len(self.db["song_structs"]))
-        primary = struct[0]
-        s.num_patterns = max(1, len(primary.rstrip()) // 4)
+        phrase = self.db["song_structs"][phrase_idx]
+        s.phrase_index = phrase_idx
+        s.arrangement = g
+        s.arrangement_phrases = self.db["song_structures"][g * 3:g * 3 + 3]
 
-        # echo + rhythm-mix selectors (category 6 and 5)
-        echo = self.sel.sel(6, len(self.db["echo"]))
-        rmix = self.sel.sel(5, len(self.db["rhythm_mix"]))
+        # step period = two leading digits of the phrase; number of patterns
+        # is the quadruple count of the arrangement string       (0x1063d6)
+        step = 10 * (ord(phrase[0]) - 0x30) + (ord(phrase[1]) - 0x30)
+        s.num_patterns = len(s.arrangement_phrases[0]) >> 2
 
-        chords_bank = self.db["song_structs"]
+        # optional halve/double of the step period                (0x106426)
+        if 4 < step < 0x40:
+            v = rng.rand() & 7
+            if v in (1, 2):
+                step >>= 1
+            elif v == 5:
+                step *= 2
+
+        # timing divider from phrase length and step             (0x106464)
+        timing = (len(phrase) >> 2) * step
+        while timing <= 0x20:
+            timing <<= 1
+        timing <<= 1
+        if timing < 0x100 and (rng.rand() & 1):
+            timing <<= 1
+        s.step_period = step
+        s.timing = timing
+
+        # echo and rhythm-mix selectors                           (0x1064e8)
+        s.echo = self.sel.sel(6, len(self.db["echo"]))
+        s.rhythm_mix = self.sel.sel(5, len(self.db["rhythm_mix"]))
+
+        # ---- per-pattern selectors (outer loop) -------------------------
         drums_a = self.db["drums_a"]
         drums_b = self.db["drums_b"]
         melody_bank = self.db["melody_a"] if not speech else self.db["melody_b"]
         arp_bank = self.db["arps"]
 
         for _p in range(s.num_patterns):
-            drum_a = self.sel.sel(0, len(drums_a))     # FUN_0010861c(0,0x11)
-            drum_b = self.sel.sel(1, len(drums_b))     # FUN_0010861c(1,0xe)
-            mel = self.sel.sel(3, 0x18)                # FUN_0010861c(3,0x18)
-            arp = self.sel.sel(4, 0x27)                # FUN_0010861c(4,0x27)
+            drum_a = self.sel.sel(0, 0x11)     # FUN_0010861c(0,0x11)
+            drum_b = self.sel.sel(1, 0x0E)     # FUN_0010861c(1,0x0e)
+            mel = self.sel.sel(3, 0x18)        # FUN_0010861c(3,0x18)
+            arp = self.sel.sel(4, 0x27)        # FUN_0010861c(4,0x27)
             s.patterns.append({
-                "chord": chords_bank[phrase_idx],
-                "bass": chords_bank[phrase_idx],
+                "chord": phrase,
+                "bass": phrase,
                 "melody": melody_bank[mel % len(melody_bank)],
                 "drums": drums_a[drum_a],
                 "drums_b": drums_b[drum_b],
                 "arp": arp_bank[arp],
-                "echo": self.db["echo"][echo],
-                "rmix": self.db["rhythm_mix"][rmix],
+                "echo": self.db["echo"][s.echo],
+                "rmix": self.db["rhythm_mix"][s.rhythm_mix],
             })
 
-        # func 0x108816 runs *after* 0x106256 (inside the play routine
+        # FUN_00108816 runs *after* 0x106256 (inside the play routine
         # 0x1073e6) on the same RNG stream, so the name is rolled last.
         s.name = self.title()
         return s

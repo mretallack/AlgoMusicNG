@@ -148,8 +148,7 @@ class Selectors:
         r = self.rng.rand()
         if (((r & 3) == 1) and (self.count[cat] > 5)) or (self.last[cat] == 0xFFFF):
             while True:
-                self.rng.rand()
-                v = self.rng.rand_mod(n)
+                v = self.rng.rand() % n
                 if n == 1:
                     break
                 if v != self.last[cat]:
@@ -170,8 +169,7 @@ class Selectors:
             self.perm_n = 0
         while True:
             while True:
-                self.rng.rand()
-                v = self.rng.rand_mod(n)
+                v = self.rng.rand() % n
                 if self.perm_slots[v] == 0:
                     break
             if v != self.perm_prev:
@@ -190,8 +188,7 @@ class Selectors:
             self.perm9_n = 0
         while True:
             while True:
-                self.rng.rand()
-                v = self.rng.rand_mod(9)
+                v = self.rng.rand() % 9
                 if self.perm9_slots[v] == 0:
                     break
             if v != self.perm9_prev:

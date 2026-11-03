@@ -7,7 +7,7 @@ import argparse
 import sys
 
 from .song import Generator
-from .render import render
+from .render import render, render_samples
 
 
 def main(argv=None):
@@ -18,6 +18,8 @@ def main(argv=None):
     p.add_argument("-o", "--out", default="algomusic.wav", help="output WAV file")
     p.add_argument("-n", "--count", type=int, default=1, help="render N songs")
     p.add_argument("--info", action="store_true", help="print database statistics")
+    p.add_argument("--synth", action="store_true",
+                   help="use the oscillator synth instead of the real 8SVX sample bank")
     args = p.parse_args(argv)
 
     if args.info:
@@ -41,7 +43,10 @@ def main(argv=None):
     for i in range(args.count):
         song = gen.generate(bpm=args.bpm, finetune=args.finetune)
         out = args.out if args.count == 1 else args.out.replace(".wav", "_%d.wav" % (i + 1))
-        render(song, out)
+        if args.synth:
+            render(song, out)
+        else:
+            render_samples(song, out)
         print('Playing song "%s" ($%08x) -> %s' % (song.name, song.seed, out))
     return 0
 

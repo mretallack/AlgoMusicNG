@@ -68,7 +68,16 @@ python3 -m algomusic -s '$4002' -o song.wav
 
 # different tempo / finetune, five songs
 python3 -m algomusic -b 176 -f 100 -n 5 -o out.wav
+
+# forced oscillator synth instead of the real 8SVX sample bank
+python3 -m algomusic -s '$4002' --synth -o song.wav
 ```
+
+By default the renderer plays the **real 8SVX instrument bank** shipped with
+the Amiga package (`full/AlgoMusic/{Chords,Bass,Melody,Rhythm,Acid}`): chord,
+bass and melody samples are resampled to the required note frequency on a
+virtual Paula, drums play one-shot. Use `--synth` for the old oscillator
+fallback.
 
 ## Reproducing the analysis
 
@@ -90,38 +99,44 @@ Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
 * note/chord token parsing (`0x107340`);
 * the selector helpers: `0x10861c` (category selector incl. its "sticky"
   repeat + reroll conditions), `0x108710` (70-slot permutation) and
-  `0x108794` (9-slot permutation);
+  `0x108794` (9-slot permutation) — including the exact one-`rand()`-per-modulo
+  behaviour (`rand() % n`, *not* two calls);
 * the per-song call order of `0x106256` for structure / phrase / rhythm /
   melody / arp / echo selection, using the original moduli
   (`%17, %14, %24, %39, %8, %4, %70, %9`).
 
-**Still needed for *bit-identical* output:**
-1. the remaining un-decompiled helpers invoked by `0x106256`
-   (`0x10be8c`, `0x10bf50`, the per-voice setup around `0x113180`, the
-   `0x10ab38`/`0x10b0a2` speech path) which consume further RNG values and
-   therefore shift the sequence;
-2. the sample database (the `.readme`/file-comment parsing in
-   `0x109c72`/`0x1092ca`) — the number of samples per directory changes every
-   `rand()%n`, so the *same sample drawer* must be present (`full/AlgoMusic`);
-3. the player: Paula- period/volume/offset computation and mixing of the
-   actual 8SVX samples (`BASE`, `CLAP`, `HIHAT`, `SNARE`, breakbeat, chord and
-   speech samples), which is what makes the audio identical.
+Note on `0x10be8c` / `0x10bebe` / `0x10bf50`: these are **SAS/C runtime maths
+helpers**, not RNG consumers — `0x10bebe` is 32-bit unsigned division
+(quotient in D0, remainder in D1), `0x10be8c` is the modulo and `0x10bf50` is
+the 16×16→32 multiply. The moduli are `rand() % n`; the remainder is what every
+caller reads. So they shift *nothing*.
 
-**Verification** is the hard part: the original performs direct hardware access
-and needs `graphics.library` + `intuition.library`. It runs under `vamos`
-(`pip install 'amitools[vamos]'`) up to the point of opening `graphics.library`,
-which `vamos` does not implement — so no ground truth yet. Supplying a stub
-`graphics.library` (or a real FS-UAE/WinUAE setup with a Kickstart ROM) would
-let us diff the `LOG=` output line
+**Still needed for *bit-identical* output:**
+1. a full line-by-line port of the sequencer `0x106256` (the per-step
+   chord/bass/melody/arp/drum note-table fill), including the implicit
+   `rand() % n` sites and the `0x10bf50` timing divider — this is the part that
+   consumes the bulk of the RNG stream and therefore fixes the song-name too,
+   because `0x108816` (title builder) runs *after* `0x106256` on the same
+   stream (it rolls adjective, noun, then one of 14 templates);
+2. the speech path `0x10ab38`/`0x10b0a2` (only with the `SPEECH` switch);
+3. Paula period/volume/offset timing of the player `0x1073e6` for exact audio
+   (the new `render_samples` already plays the *real* 8SVX bank, so the timbre
+   is right; the sample-level timing/offsets are not yet bit-exact).
+
+**Verification / ground truth.** The original is a shell tool but needs
+`graphics.library` + `intuition.library` and direct hardware access. Under
+`vamos` (`pip install 'amitools[vamos]'`) it now starts: it locks `PROGDIR:`
+for its data, scans every sample directory and creates its `AlgoMusic.port`,
+with `graphics.library` supplied via `-O graphics.library=mode:fake,...`. It
+then exits cleanly *before* the play loop (no `LOG=` line), because the
+intuition/audio state it expects is absent. So we still have no ground-truth to
+diff. A real FS-UAE/WinUAE + Kickstart run would emit the
 
 ```
 Date  Time  Songname  Randominit  Nr  Length
 ```
 
-against the Python generator and drive the port to byte-exactness.
-
-**Audio:** the current `render.py` synthesises the four voices. It will be
-replaced by a sample-player once (2)/(3) are ported.
+log line to validate the port.
 
 ## Legal
 

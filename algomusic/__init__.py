@@ -10,7 +10,9 @@ Public API:
 """
 from .rng import Rng
 from .song import Generator, Song, load_db
-from .render import render
+from .render import render, render_samples
+from .samples import SampleBank
 
-__all__ = ["Rng", "Generator", "Song", "load_db", "render"]
-__version__ = "0.1.0"
+__all__ = ["Rng", "Generator", "Song", "load_db", "render", "render_samples",
+           "SampleBank"]
+__version__ = "0.2.0"

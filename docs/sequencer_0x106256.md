@@ -156,6 +156,54 @@ for each of num_patterns:
 Verified by `tools/verify_groundtruth.py`: the resulting *title* (rolled last by
 `0x108816`) and the *song length* match the original for 10/10 seeds.
 
+## The step loop (partial decode — groundwork for note-level output)
+
+Recovered while reading the loop; implemented where marked in
+`algomusic/sequencer.py`.
+
+* **Note parser `FUN_00107340`.** Token is `"<letter><quality><octave-digit>"`.
+  Returns `(digit-'1')*12 + letter_index`, where `letter_index` is the first
+  matching entry of the 12-entry notename table at `0x10e6d0` (`c c# d d# e f
+  f# g g# a a# h`).  Only the letter is compared, so the phrases never use
+  accidentals; the middle char (`-`, `4`, `6`, …) is a *quality*, read
+  separately by the loop.  → `sequencer.parse_note`.
+* **Period lookup `FUN_001072d2`.** Splits the (transposed) semitone value into
+  octave + 0..11, shifts the 12-entry period table at `0x10e700`
+  (`1050,991,935,882,833,786,742,700,661,624,589,556`) and doubles until the
+  period reaches `>= 0x7f`.  → `sequencer.note_to_period`.
+* **Two "rhythm" pattern tables.** `PTR_FUN_0010e108` (17 entries, `sel(0,0x11)`)
+  is the **chord-comping** pattern: each char `'1'..'9'` shifts the chord period
+  right by `char-'1'` (`0x119198[step] = period >> shift`), and resets every 16
+  steps.  `PTR_FUN_0010e14c` (14 entries, `sel(1,0x0e)`) is the **bass**
+  pattern.  (`song.py` still calls these `drums_a`/`drums_b`.)
+* **Drum patterns.** The arrangement string `song_structures[3*g]` is indexed at
+  `(step>>4) + pattern*4`; the char is mapped to an index into `PTR_FUN_0010e32c`
+  (`drum_patterns`, 50 strings over `.-+:^*#X`) by
+  `b = ch-'1'; if b<0x30: (if b>8: b=ch-0x1e) else b=ch+0xa8` — implemented as
+  `sequencer.drum_pattern_index`.  The selected 16-char string names the drum
+  voice (`-` rest; `.`,`+`,`:`,`^`,`*`,`#`,`X` → drum indexes) per step.
+* **Character flags.** `A4+0x5d` is a 256-byte table, bit0 = upper-case letter,
+  bit1 = lower-case (`sequencer.char_flags`); it decides chord quality
+  (`&1`) and title capitalisation.
+* **Oscillator (vibrato) state.** Three per-voice values `local_86[0..2]` plus a
+  direction flag `abStack_9f[]` are reflected between `0x113180[i]` and
+  `0x11318c[i]` every step and written to the amplitude tables.  In a default
+  run all `0x113180` are zero, so these stay 0.
+
+Output tables written per step (index = `DAT_00128198`, the global step counter):
+
+```
+chord  : 0x119198 period   0x113198 voice
+bass   : 0x11a998 period   0x114998 voice  0x120998 amp  0x125d98 phasing
+arp    : 0x11d998 period   0x117998 voice  0x123998 amp  0x127598 phasing
+melody : 0x11d998 period   0x117998 voice  0x123998 amp
+drum   : 0x116198 period   0x11c198 volume 0x122198 offset
+ring   : 0x111170 melody ring (up to 0x29 entries)
+```
+
+Each entry is 1 word per step (`DAT_00128198` steps total).  `0xffff` means
+"rest / no note".
+
 ## Still outstanding (for sample-level audio, not for the RNG stream)
 
 The step loop also writes the per-step playback tables (chord/bass/arp/melody

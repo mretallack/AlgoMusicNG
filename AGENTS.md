@@ -140,7 +140,9 @@ Outstanding (this is the work list):
 1. **Note-level playback tables of `FUN_00106256`** — the step loop also fills
    the per-step period/voice/amplitude tables the player feeds to Paula.  The
    renderer approximates these; porting them is what remains for sample-level
-   audio.
+   audio.  The primitives (note parser, period lookup, drum-pattern index map,
+   char flags, and the output-table map) are already implemented in
+   `algomusic/sequencer.py` + `docs/sequencer_0x106256.md`.
 2. **`0x10e946 != 0` melody-roll variant** and `0x10e92e`/`0x10e93e`
    arrangement-letter handling (not exercised by a plain `INIT $seed` run).
 3. Sample-DB parsing `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`

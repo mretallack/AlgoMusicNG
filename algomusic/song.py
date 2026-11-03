@@ -394,7 +394,7 @@ class Generator:
             s.patterns.append({
                 "chord": phrase,
                 "bass": phrase,
-                "melody": melody_bank[mel % len(melody_bank)],
+                "melody": melody_bank[mel],
                 "drums": drums_a[drum_a],
                 "drums_b": drums_b[drum_b],
                 "arp": arp_bank[arp],

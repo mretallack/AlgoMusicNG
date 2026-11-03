@@ -214,22 +214,81 @@ class Generator:
         return self.db["song_structures"][g * 3:(g + 1) * 3]
 
     def title(self):
-        adj = self.db["adjectives"]
-        noun = self.db["nouns"]
-        tmpl = NAME_TEMPLATES[self.rng.rand_mod(len(NAME_TEMPLATES))]
-        n = tmpl.count("%s")
-        words = []
-        for i in range(n):
-            pool = adj if i % 2 == 0 else noun
-            words.append(pool[self.rng.rand_mod(len(pool))])
-        return tmpl % tuple(words)
+        """Faithful port of the title builder 0x108816.
+
+        The binary rolls, in this order: adjective, noun, template (14 of them),
+        then - for the templates that need them - extra adjective/noun rolls
+        (with anti-repeat retry loops of at most 20 tries).  The *order* matters
+        because it consumes the same RNG stream that 0x106256 left behind.
+        """
+        adjs = self.db["adjectives"]
+        nouns = self.db["nouns"]
+
+        adj = adjs[self.rng.rand() % len(adjs)]
+        noun = nouns[self.rng.rand() % len(nouns)]
+        t = self.rng.rand() % 14
+
+        def cap(s):
+            return s[:1].upper() + s[1:]
+
+        def is_vowel_start(s):
+            return s[:1].lower() in "aeiou"
+
+        def roll_noun(avoid):
+            n = None
+            for _ in range(20):
+                n = nouns[self.rng.rand() % len(nouns)]
+                if n != avoid:
+                    break
+            return n
+
+        def roll_adj(avoid):
+            a = None
+            for _ in range(20):
+                a = adjs[self.rng.rand() % len(adjs)]
+                if a not in avoid:
+                    break
+            return a
+
+        if t == 0:
+            return "The %s %s" % (adj, noun)
+        if t == 1:
+            return ("An %s %s" if is_vowel_start(adj) else "A %s %s") % (adj, noun)
+        if t == 2:
+            return "Another %s %s" % (adj, noun)
+        if t == 3:
+            return "%s %s" % (cap(adj), noun)
+        if t == 4:
+            return "Where's that %s %s?" % (adj, noun)
+        if t == 5:
+            return "Meet the %s %s" % (adj, noun)
+        if t == 6:
+            return "The %s %s in my house" % (adj, noun)
+        if t == 7:
+            return "Follow the %s %s" % (adj, noun)
+        if t == 8:
+            return "My %s is your %s" % (noun, roll_noun(noun))
+        if t == 9:
+            noun2 = roll_noun(noun)
+            adj2 = roll_adj((adj,))
+            return "The %s %s and the %s %s" % (adj, noun, adj2, noun2)
+        if t == 10:
+            return "%s %s in space" % (cap(adj), noun)
+        if t == 11:
+            return "%s and %s" % (adj, roll_adj((adj,)))
+        if t == 12:
+            return "%s %s strikes back" % (cap(adj), noun)
+        if t == 13:
+            adj2 = roll_adj((adj,))
+            adj3 = roll_adj((adj, adj2))
+            return "%s, %s and %s" % (adj, adj2, adj3)
+        return "The %s %s" % (adj, noun)
 
     def generate(self, bpm=160, finetune=100, speech=False):
         s = Song()
         s.seed = self.seed
         s.bpm = bpm
         s.finetune = finetune
-        s.name = self.title()
 
         # --- func 0x106256 : per-song selection sequence -----------------
         self.rng.rand()                            # leading rand() in 0x106256
@@ -265,4 +324,8 @@ class Generator:
                 "echo": self.db["echo"][echo],
                 "rmix": self.db["rhythm_mix"][rmix],
             })
+
+        # func 0x108816 runs *after* 0x106256 (inside the play routine
+        # 0x1073e6) on the same RNG stream, so the name is rolled last.
+        s.name = self.title()
         return s

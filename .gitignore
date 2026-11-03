@@ -1,0 +1,9 @@
+# generated / large artefacts
+*.wav
+*.lha
+work/
+full/
+__pycache__/
+*.pyc
+*.pyo
+.ghidra/

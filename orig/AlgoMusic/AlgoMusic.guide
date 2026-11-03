@@ -1,0 +1,1399 @@
+@database AlgoMusic.guide
+
+@node "MAIN" "Welcome to the AlgoMusic documentation"
+
+                                @{b}AlgoMusic V2.4@{ub}
+                             
+                        (C) 20.08.98 by Thomas Schürger
+  
+                        A nice algorithmic song player
+                         for House/Techno-style music
+
+                                   Giftware
+
+                                   @{b}Contents@{ub}
+
+                          @{"        Copyright        " link "Copyright" 0}
+                          @{"      Introduction       " link "Introduction" 0}
+                          @{"        Features         " link "Features" 0}
+                          @{"      Requirements       " link "Requirements" 0}
+        
+                          @{"      Installation       " link "Installation" 0}
+                          @{"      Shell Usage        " link "ShellUsage" 0}
+                          @{"     AlgoMusicPrefs      " link "AlgoMusicPrefs" 0}
+                          @{"   Configuring Samples   " link "ConfiguringSamples" 0}
+
+                          @{"           FAQ           " link "FAQ" 0}                        
+                          @{"          Tips           " link "Tips" 0}
+                          @{"     Developer-Files     " link "Developer" 0}
+                          @{"      Bugs/Problems      " link "Bugs" 0}
+
+                          @{"         History         " link "History" 0}
+                          @{"         Future          " link "Future" 0}
+                          @{"         Wanted          " link "Wanted" 0}     
+
+                          @{"         Credits         " link "Credits" 0}
+                          @{"         Support         " link "Support" 0}
+                          @{"         Author          " link "Author" 0}
+                          @{"      Registration       " link "Registration" 0}
+
+             "Always remember: Music is the only drug you need."
+                               - Steve Mason -
+
+           @{b}Note@{ub}: Now there's a workaround for the comment problem!
+                         See history or FAQ section.
+
+        Please rate @{u}each@{uu} update of AlgoMusic on Aminet! See "Author"!@{ub}
+@endnode
+
+@node "Copyright" "Copyright"
+Software Copyright
+------------------
+  The Copyright for this program belongs to the author and noone else.
+
+Type of Software
+----------------
+  AlgoMusic  is Giftware. This means that you can practically do anything to
+it.  Copy,  rename or even delete it in any manner you like. But you mustn't
+modify  or  disassemble  ANY of the files supplied in the AlgoMusic-archive.
+Except  for  samples,  no  files  may  be  added or deleted from the release
+archive,  especially  the executables and this guide must be left unchanged.
+Crunching with any good packer or other archivers available to the public is
+allowed, but not suggested.
+
+  You may not gain any commercial or private profit out of this program. You
+even may not use it commercially (meaning running it in your shop to attract
+customers, for example) without my written permission to do so.
+
+  If  you use AlgoMusic for your own (noncommercial) productions (disk mags,
+slideshows,  demos  etc.)  you  need to mention my name somewhere, send me a
+mail about it and possibly also a copy of your program.
+
+  This   software  is  provided  "as is", meaning that I will @{u}not@{uu} in any way
+be  responsible  for  any  loss  of  data or damage done to your hardware or
+software  directly or indirectly by the use of this program. No warranty for
+the  functionality  is  given,  neither  implied  nor  expressed. If you are
+against such regulations, don't use this program.
+
+  You  are  asked  to send me a gift (stamps, disks, pinup-girls, umbrellas,
+modems,  ZIP  drives,  GB HDs, mini disc players, A4000s, Ferraris, swimming
+pools,  bungalows  and  MIG  29s  are preferred) if you like AlgoMusic. I'll
+accept  small  financial  donations as well, of course. Even for private use
+all  these  suggestions  are  actually  a  "must" if you use AlgoMusic for a
+period of more than 2 weeks. Sending a gift will very well keep me improving
+the  code  and functionality of this program. As you can see in the history,
+loads of improvements have been included so far.
+
+  Not sending a gift or a donation is both @{u}immoral@{uu} and @{u}illegal@{uu}!
+
+
+Distribution Conditions
+-----------------------
+  AlgoMusic  may  be taken for use in any PD/FD/Shareware library (including
+Aminet  and  Fred  Fish's library). If it is published on any digital medium
+and   thereby   sold  for  money,  regardless  of  the  profit,  you  simply
+@{b}MUST@{ub}  send  me  at least one copy of the disk or CD it is published upon.
+
+Availability
+------------
+  Do  your  best  to  make AlgoMusic available everywhere on our small Earth
+(BBS, WWW, FTP, CD-ROMs, ...) and tell your friends about it.
+@endnode
+
+@node "Introduction" "Introduction"
+  Ever  been  tired  of  looking into your soundmodule-directory and yawning
+your  head off because you've heard all your boring mods thousands of times?
+Well, here is the ultimate solution!
+
+  AlgoMusic  is  quite  a  complex  program  that  creates  and plays a song
+randomly  out  of  a series of algorithms in a Techno/House manner. Just try
+it, it sounds nice. :)
+
+  AlgoMusic  will  read its samples randomly from different directories. You
+may  add,  delete and configure these files. Please look at the readme-files
+in the sample directories or the @{"Configuring Samples" link "ConfiguringSamples" 0}-part for more info.
+
+  AlgoMusic  is  a shell-tool only. Starting from Workbench is possible, but
+configuration using tooltypes does not work yet. A prefs-program which also
+features a GUI for everyday use with MUI 3.x is included since V1.5.
+@endnode
+
+@node "Features" "Features"
+AlgoMusic features:
+-------------------  
+  o Giftware.
+
+  o Groovy song creation algorithms.
+
+  o Samples totally customizable.
+
+  o Speech sample support.
+
+  o Short song creation times.
+
+  o Compiled using SAS/C 6.57 with proper optimization.
+
+  o Low memory usage.
+
+  o 68000, 68020/030 and 68040/060 versions included.
+
+  o MUI configuration and everyday-use utility including nice analyzer.
+
+  o Shell or GUI usage possible.
+
+  o Nice Installer script for easy installation.
+
+  o Update and full install archive available.
+
+  o Release archive includes a nice collection of acid, bass, chords,
+    melody, base, breakbeat, clap, hihat, snare and speech samples.
+
+  o Archive includes developer files.
+@endnode
+
+@node "Requirements" "Requirements & Recommendations"
+AlgoMusic requires:
+-------------------
+  o any Amiga with Motorola 680x0 processor
+
+  o Amiga OS 2.0 or higher
+
+  o about or less than 512 KB of free chipmem
+
+  o additional 512 KB of free chipmem or fastmem
+
+  o a harddrive (or a HD disk or ZIP disk ;-D )
+
+  o about 2.0 MB of free disk space
+
+  o Commodore's or AT's Installer
+
+  o MUI 3.x if you want to use the prefs-program
+
+
+Recommended hardware/software:
+------------------------------
+  o Amiga OS 3.1
+
+  o 68030/50, 68060/66 for hyperspeed use
+
+  o Installer 43.3
+
+  o MUI 3.8
+
+
+AlgoMusic won't work on:
+------------------------
+  o Amigas with non-standard audio or CIA hardware (e.g. DraCo)
+
+
+Development info:
+-----------------
+  It  was developed on a PAL Amiga 1200 with OS 3.1, 68030/50 and 48 Megs of
+60  ns  Fast-RAM.  It has also been tested on quite a large variety of other
+differently equipped Amiga hardware without any problems.
+@endnode
+
+@node "Installation" "Installation"
+  Installation is performed using Commodore's (or AT's) Installer. It is not
+included  in the AlgoMusic package but is part of your Workbench. The newest
+version should also be available on Aminet. That should be V43.3.
+
+  Easy installation is guaranteed.
+
+
+  Click here to install if you haven't done it already:
+
+     @{"Install AlgoMusic" system "Installer Install"}
+@endnode
+
+@node "ShellUsage" "Shell Usage"
+  AlgoMusic  can  be  used  either  via  launching  it  from  the  shell or,
+alternatively,  by  using  the  prefs  program  which  also  allows starting
+AlgoMusic.
+
+
+  The argument-template looks as follows:
+
+    ACID/S,AVOL=ACIDVOLUME/K/N,BB=BREAKBEAT/S,BBVOL=BREAKBEATVOLUME/K/N,
+    BPM/K/N,BVOL=BASSVOLUME/K/N,CONT=CONTINUE/S,CVOL=CHORDSVOLUME/K/N,
+    DVOL=DRUMSVOLUME/K/N,ECHO/S,FILTER/S,FINETUNE/K/N,FOREVER=REPEAT/S,
+    FREEMELODY/S,INFO/S,INIT=RANDOMINIT/K,LOG=LOGFILE/K,NEWSONGCOMB/K,
+    MVOL=MELODYVOLUME/K/N,NEWSONG/S,NOALLOC/S,NOENV/S,NOFADE/S,QUIET/S,
+    QUIT=BREAK/S,QUITCOMB/K,SAFE/S,SPEECH/S,STOP/S,SVOL=SPEECHVOLUME/K/N,
+    VOL=VOLUME/K/N
+
+
+
+Flag  Argument        Description
+------------------------------------------------------------------------
+
+S  ACID               Switches on the use of an acid-style sample where
+                      applicable. By default, it is switched off.
+
+SR ACIDVOLUME n       Allows setting relative volume of acid sounds [0..64].
+
+S  BB=BREAKBEAT       Enables using breakbeats where applicable.
+
+SR BASSVOLUME n       Allows setting relative volume of bass [0..64].
+
+SR BPM n              Sets the playing speed to the BPM value specified.
+                      It must be in the range of [84..200]. The default
+                      is 160.
+
+SR BREAKBEATVOLUME n  Allows setting relative volume of breakbeats [0..64].
+
+SR CHORDSVOLUME n     Allows setting relative volume of chords [0..64].
+
+ R CONT=CONTINUE      Tells AlgoMusic to go on playing after having been
+                      STOPped. Otherwise it is ignored.
+
+SR DRUMSVOLUME n      Allows setting relative volume of drums [0..64].
+
+S  ECHO               Tells AlgoMusic to use echo-effects, where possible.
+
+S  FILTER             If this switch is activated, then the audio filter is
+                      switched on. By default, the filter is switched off.
+
+SR FINETUNE n         Sets the global finetune for the song to n. The value
+                      is given in %% (thousandth) to add to the normal
+                      frequency, thus 1000%% doubles the frequencies whereas
+                      -500%% halves them.
+
+S  FOREVER=REPEAT     If you want AlgoMusic to go on playing forever, this
+                      is the right switch to use. After finishing a song,
+                      a new song is quickly created and played. By default,
+                      FOREVER is switched off.
+
+S  FREEMELODY         Chooses "free melody" melody creation type.
+ 
+SR INFO               Shows some information about used samples for each song
+                      and general info about this AlgoMusic version.
+
+S  INIT=RANDOMINIT $h Initializes the random generator with the hex-value
+                      specified. Same hex numbers will result in same
+                      songs.
+
+S  LOG=LOGFILE name   Specifies a filename (with path) for a logfile. Each
+                      time a new song is rendered, some information is
+                      appended to that file. If not specified, no logfile
+                      is generated.
+
+SR MELODYVOLUME n     Allows setting relative volume of melody [0..64].
+                                      
+ R NEWSONG            Forces an already running AlgoMusic process to create
+                      a new song and instantly play it.
+
+S  NEWSONGCOMB n      Specifies a key/mousebutton combination for creating a
+                      new song. n can be one of the following:
+
+                        "Off"      
+                        "MMB"      
+                        "LMB+RMB"
+                        "MMB+RMB"
+                        "LMB+MMB"
+                        "LMB+MMB+RMB"
+                        "LALT+LMB"
+                        "LALT+RMB"
+                        "CTRL+LMB"
+                        "CTRL+RMB"
+
+                         LMB = Left Mouse Button
+                         MMB = Middle Mouse Button
+                         RMB = Right Mouse Button
+                        LALT = Left Alt
+                        CTRL = Control
+
+S  NOALLOC            This switch disables the allocation of audiochannels.
+                      By default, the channels are allocated.
+ 
+S  NOENV              When enabled, AlgoMusic will ignore the preferences
+                      in your ENV: directory. Cool for putting AM on e.g.
+                      bootable CDs without having to bother about an ENV:
+                      directory.
+
+S  NOFADE             Normally, the song is smoothly faded out in the
+                      song's last pattern. Use this switch to avoid that.
+
+S  QUIET              All output is suppressed, except error messages.
+ 
+ R QUIT=BREAK         Forces an already running AlgoMusic process to
+                      immediately stop playing and quit. It is the same
+                      as sending the process a CTRL-C (e.g. using the
+                      Shell Break-command). If AlgoMusic was not running
+                      before, it is launched.
+
+S  QUITCOMB n         Specifies a key/mousebutton combination for quitting
+                      AlgoMusic. See NEWSONGCOMB section.
+
+S  SAFE               Uses workaround for a bad V37 and V39 Kickstart bug
+                      when reading comments with ExAll(). If AlgoMusic
+                      tells you some strange things about wrong comments,
+                      you must use this switch. ExAll() is then emulated
+                      via Examine()/ExNext(). Just try, if it works without,
+                      leave this switch off, because directory scanning
+                      is slightly faster then.
+
+S  SPEECH             Enables use of speech samples.
+
+SR SPEECHVOLUME n     Allows setting relative volume of speech [0..64].
+
+ R STOP               Forces a running AlgoMusic to stop playing but not
+                      to quit. Using CONT you can tell it to go on playing
+                      the song. All other commands may be used as well while
+                      stopped.
+
+SR VOL=VOLUME n       This sets the main volume the song is played at. It
+                      must be in the range of [0..64]. Default is 64.
+
+----------------------------------------------------------------------------
+
+Flags:
+
+  S: Usable when AlgoMusic is launched
+  R: Usable when AlgoMusic is already running
+
+
+  Examples:
+
+  1> AlgoMusic BPM 140
+
+  would play it a bit slower than with the default value.
+
+
+  If  you  like  it fast and forever with acid-style, breakbeats, speech and
+echo, you might use
+
+  1> AlgoMusic BPM 176 SPEECH ACID FOREVER BREAKBEAT ECHO   :^)
+
+
+Changing settings while running:
+--------------------------------
+  All  changeable  settings  (those  parameters  marked  with an 'R') can be
+modified while playing with the prefs program or by starting AlgoMusic again
+from shell with the desired new values.
+
+  Example:
+
+  AlgoMusic BPM 120 VOLUME 40
+
+  Changes BPM and main volume of AlgoMusic while playing.
+
+
+Using a prefs-file by hand:
+---------------------------
+  You   can   put   your   favourite   arguments   into  a  variable  called
+"ENV:AlgoMusic.prefs".  It  is  parsed  just the way the shell arguments are
+parsed. Shell arguments override the variable arguments, which means that if
+you  have  specified  "INIT  $4002" in the variable and use "INIT $5" in the
+shell arguments, the second value is taken.
+
+  Switches are handled differently. They actually act as toggle switches, so
+if you specify the same switch in both the variable and the shell arguments,
+it  is  switched  off,  because  it  is first turned on and toggled back off
+afterwards.
+
+  If  you  already have an AlgoMusic process running, you can stop it either
+by  sending a break signal to the process or by just running AlgoMusic again
+with the BREAK or QUIT argument.
+@endnode
+
+@node "AlgoMusicPrefs" "AlgoMusicPrefs"
+  AlgoMusic's  prefs  program  features  a config part as well as a realtime
+part where you can start AlgoMusic etc.
+
+  Note  that the "config" page of the prefs program is not realtime, meaning
+that  changing  the  settings  there  will  not directly influence a running
+AlgoMusic.  If  you  want to use these settings directly, you must first hit
+"Eject" and then push "Play" or "New".
+
+  As  MUI  3.x  help  bubbles  are heavily used, the prefs program should be
+self-explanatory.  If  you  are still unsure about something, have a look at
+the @{"shell arguments" link "ShellUsage" 0}.
+
+  AlgoMusicPrefs may be exited either by closing the window (equals Cancel),
+Use or Save and by sending a CTRL-C to the process.
+
+  Since V2.3, AlgoMusic also supports passing arguments to AlgoMusicPrefs.
+
+
+  The argument-template looks as follows:
+
+    ICONIFY/S,PLAY/S
+
+
+
+  Argument            Description
+------------------------------------------------------------------------
+
+  ICONIFY             Do not open prefs window immediately but open the
+                      MUI application iconified. Double-clicking on the
+                      icon will open the prefs window. Additionally, you
+                      might want to enable the iconify gadget in MUI
+                      prefs to reiconify the prefs window when open.
+
+  PLAY                Immediately start playing after opening the prefs
+                      window. If already playing (or stopped), does nothing.
+@endnode
+
+@node "ConfiguringSamples" "Configuring Samples"
+  Each  sample  may  have  an own configuration in volume, pitch etc. You'll
+just have to add a filenote (comment) with your wished template style string
+to the sample's file.
+
+
+  The following things are possible to set for each sample:
+
+  @{"     VOLUME/K/N" link "VOLUME" 0}
+  @{"   FINETUNE/K/N" link "FINETUNE" 0}
+  @{"PHASERDEPTH/K/N" link "PHASERDEPTH" 0}   works only with
+  @{"PHASERSPEED/K/N" link "PHASERSPEED" 0}   acid, melody & bass samples
+
+
+  Just  concatenate these options in the filecomment of the specific sample.
+It could look like this:
+
+  "VOLUME=40 FINETUNE=1000 PHASERDEPTH=15000 PHASERSPEED=120"
+
+
+  Additionally,  please  look at the different ".readme"-files in the sample
+directories!
+@endnode
+
+@node "VOLUME" "VOLUME"
+  The VOLUME=x template works as follows:
+
+  It  sets the relative sample volume (0-64). Relative, because you can also
+alter the sample's volume by changing the main volume or e.g. the bassvolume
+for bass-samples.
+
+  The  default  volume  for  samples  is 64. If any samples appear to be too
+loud, just use a smaller value.
+@endnode
+
+@node "FINETUNE" "FINETUNE"
+The FINETUNE=x template works as follows:
+
+
+Normal samples
+--------------
+It is the permillage (not percentage) of what is added to the samples normal
+frequency. x may also be negative.
+
+    x           Frequency     Factor
+
+    0              0%% more = * 1
+ 1000           1000%% more = * 2
+  500            500%% more = * 1.5
+ -500            500%% less = / 2
+ -750            750%% less = / 4
+
+  So if a sample appears to be too deep, you can just add "FINETUNE 1000" to
+the  samples'  file-comment  in  order  to  play it twice as fast (=1 octave
+higher).
+
+  So the formula is:
+
+Factor = (x+1000)/1000
+
+  If  you're  good  at  math,  you  can  even calculate the x's for semitone
+transpositions! ;-)
+
+  For transposing a tone up n semitones, simply use this formula:
+
+  x = 1000 * 2 ^ (n/12) - 1000
+
+  FINETUNE  won't  work  with  drum  samples  (excluding breakbeat-samples),
+because  the  samples are mixed in order to get combinations (base+clap, for
+example). Different volumes for mixed samples are possible, though.
+
+
+Speech and Breakbeat samples
+----------------------------
+  The  finetuning  works  different for Speech and Breakbeat samples because
+the  sample  period  has to be properly scaled to the specified bpm playback
+rate. Internally the period is calculated like this:
+
+  period = (30000-finetune)/bpm
+
+  This  means that if you'd like to play a sample twice as fast (at the same
+bpm  rate,  of course) you'll have to put a "FINETUNE=15000" in the sample's
+filecomment.  You'll  also  have  to  be  careful  not to hit the hardware's
+playback  limit  (being somewhere around 130 for the period). As the maximum
+bpm  is  200, you can calculate the maximum finetune value you can use: it's
+4000 (or you'll get strange results when playing rather fast).
+@endnode
+
+@node "PHASERDEPTH" "PHASERDEPTH"
+  Some  samples appear to have a transforming sound while being played. This
+is done by just changing the sample's start offset while playing.
+
+  The  PHASERDEPTH  is the amount of @{u}words@{uu} (=2 bytes) in the samples to move
+to and fro for the start offset.
+
+  PHASERDEPTH  17000  would  cause  the byte-offset to move forward and back
+from 0 to 34000 bytes.
+
+  So,  the  PHASERDEPTH  should be slightly smaller than the sample's length
+divided  by  2,  here  meaning  the  actual  sampledata  of  the sample (not
+including 8SVX header).
+
+  The initial starting offset and its movement direction are random.
+@endnode
+
+@node "PHASERSPEED"
+  You  can  set  the  amount of @{u}words@{uu} to add to or subtract from the current
+starting offset for phaser-samples with this option. It should neither be to
+small  nor  to big. A value from 20 to 200 should be quite okay most of the
+time. Just check it out!
+@endnode
+
+@node "FAQ" "FAQ - Frequently Asked Questions"
+Frequently asked Questions about AlgoMusic
+------------------------------------------
+
+Q: When I start AlgoMusic, it keeps telling me that my sample's filecomments
+   are faulty. The first character in the displayed comment is always
+   missing.
+
+A: This is a bug in OS V37 and V39 (the latter only when using DirCache on
+   your harddrive). Those two OS versions do not correctly read filecomments
+   when using the dos.library function ExAll(). Now there is a workaround.
+   Simply start AlgoMusic with the "SAFE" switch. ExAll() will then be
+   emulated using the OS functions Examine() and ExNext().
+
+----
+
+Q: When I start AlgoMusic, I get an error telling me that there's something
+   wrong with an acid sample's comment.
+
+A: If you haven't changed any comment at all yourself, it seems as if it
+   has been destroyed, possibly by some application. This may happen when
+   copying files with certain DirOpus-like programs, for example, which
+   manipulate the filecomment.
+   When copying configured samples, always be sure that the filecomment
+   is copied along as well. This may be done by using "Copy Clone ...".
+   Especially Breakbeat and Acid samples cannot live with missing
+   comments.
+
+-----
+
+Q: When I install own acid-samples, they sound weird sometimes.
+
+A: You'll have to set the acid-parameters ACIDDEPTH and ACIDSPEED in the
+   samples' filecomments in order to work properly. You'll have to
+   experiment which values sound best. ACIDSPEED should be somewhat around
+   100, ACIDDEPTH should be about 10% less than your samplelength divided
+   by 2. 
+
+-----
+
+Q: When I install own breakbeat-samples, they seem to be cut off at the
+   end, almost regardless of the finetune-parameters for the samples.
+
+A: You seem to want to use breakbeat-samples with eight (!) beats. This
+   is not supported. You can only use samples with four beats.
+
+-----
+
+Q: What is the easiest way to install own breakbeat-samples?
+
+A: Just start AlgoMusic several times until you hear a song starting with
+   a breakbeat. Now remember the randominit-number for it. Then you can
+   move all existing breakbeat-samples somewhere else on your harddisk.
+   After that just put your new breakbeat-sample inside the
+   rhythm-directory. Now you can start AlgoMusic with the randominit-number
+   over and over again in order to find out the right FINETUNE value.
+
+   Use this method for acid and speech samples as well.
+
+-----
+
+Q: Will AlgoMusic be able to save a song in mod-format (Protracker, OctaMED)
+   in the future?
+
+A: No, I don't see a good reason why it should be able to. It would just
+   cause a new mod flood on Aminet. My own player supports things that are
+   not possible in PT anyway (e.g. volume cutoff and phasing simultaneously).
+@endnode
+
+@node "Tips" "Tips"
+ToolsDaemon
+------------
+  If you are using the great tool called "ToolsDaemon" by Nico Francois, you
+should do the following to implement AlgoMusic into it:
+
+  Create   two  menu  entries,  one  called  "AlgoMusic Start/Stop"  (assign
+Amiga-'m'  to  it) and one called "AlgoMusic Next Song" (assign Amiga-'-' to
+it).  The first menu entry should execute "AlgoMusic >NIL: BREAK" (CLI), the
+second one "AlgoMusic >NIL: NEWSONG" (CLI).
+
+  So  whenever  you  want to start or stop AlgoMusic, just hit Amiga-'m'. If
+you  want  to  hear  a  new  song  (or  want  to  start AlgoMusic), just hit
+Amiga-'-'. It's very handy indeed!
+
+  Additionally,  you  could  map  the  command "AlgoMusicPrefs ICONIFY PLAY"
+(CLI)  to a key and would always have the appicon to doubleclick in order to
+open  the prefs window. Note that MUI will only allocate a minimum of memory
+when an application is iconified.
+
+  If you have other tips for other tools, please let me know!
+@endnode
+
+@node "Developer" "Developer files"
+  AlgoMusic has a simple way to pass data to an external program. There is a
+global  message port where one can obtain this information, a simple call to
+FindMsgPort()  is  enough  to  obtain it. For further details, please have a
+look  in  the "Developer" directory. There are also some examples how to use
+this facility properly.
+
+  I  would  be glad if you'd send me some small programs (including sources)
+that  produce some fancy graphics depending on the music being played. Those
+things  should  work  on  graphics  cards,  as  well  as  on AGA or even ECS
+machines.
+
+  If your program is a rather big project, you can also release it yourself,
+but I'd like to be informed about such thing before.
+
+  Go on, do some fancy stuff!
+@endnode
+
+@node "Bugs" "Bugs/Problems"
+Known Bugs and Problems
+-----------------------
+
+  o Uses direct hardware access on audiochannels and CIA timers.
+
+  o You will find that same RANDOMINIT values are useless when using
+    different versions of AlgoMusic. You'll get other songnames with other
+    versions as well.
+
+  o If you have a proportional font for Floattext objects in MUI, the
+    "Info" switch in the prefsprogram will cause rather odd looking
+    results. That won't cause any damages, though.
+
+
+  They  will  be  (partly)  removed  in the future. So watch out for further
+updates!
+
+
+If you discover Bugs
+--------------------
+  If  you  have discovered any kind of bug, please let me know what happens,
+when  it happens and where it happens. If the bug is song-dependent (meaning
+strange  things  in  a  particular  song,  for  example)  please send me the
+randominit-number and the song number of that song.
+
+  The more thoroughly you check out these things, the more likely it is that
+the  bug  is fixed quickly. Don't forget to tell me the version of AlgoMusic
+where you have discovered the bug.
+@endnode
+
+@node "History" "History"
+Release History
+---------------
+  Dates are dates of release as well as dates of last change.
+
+
+V2.4:  (20-Aug-98)   Minor Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Fixed a number of small bugs leading to strange-sounding noises
+    sometimes.
+
+  o Added more chords etc.
+
+
+
+V2.3:  (03-Dec-97)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o If there is an error in AlgoMusic.prefs, AlgoMusic now tells the user
+    to run AlgoMusicPrefs and to save the settings.
+
+  o Implemented a nice way to obtain current notes being played, as well
+    as other sample information. Have a look at the updated files in the
+    "Developer" directory and read the @{"Developer section" link "Developer"} in this guide.
+
+  o From now on, AlgoMusic will be available as a 2-part split-archive
+    (700 KB each) on the support page, because several people requested
+    this. The two files must be joined together before LHA extraction.
+
+  o Added volume cutoff "effect".
+
+  o Changed the output of "Info" a bit.
+
+  o Added the ability to specifiy a key/mousebutton combination that results
+    in creating a new song or quit (NEWSONGCOMB and QUITCOMB).
+
+  o AlgoMusic's main program sourcecode now exceeds 100 KB (3500 lines)!
+    Altogether (all .c and .h files) exceed 168 KB.
+
+  o Added MWB and NewIcons Icons.
+
+  o Fixed some stooopid bugs in the Installer script.
+
+  o A new songinfo (INFO switch) was only created after generation of a new
+    song, so meanwhile changed volumes etc. were not represented in the
+    output. Now fixed.
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Added shell argument parsing to AlgoMusicPrefs. There are two new
+    switches: PLAY and ICONIFY. See the @{"AlgoMusicPrefs" link "AlgoMusicPrefs"} section of
+    the guide.
+
+  o AlgoMusicPrefs now uses its icon as appicon when iconified.
+
+  o AlgoMusicPrefs refused to start if there was something wrong with
+    AlgoMusic.prefs file. Now fixed.
+ 
+  o Removed the 2 Enforcer hits at start of program.
+
+  o Changed the appearance of the "About" window.
+
+  o Added two cycle gadgets for NEWSONGCOMB and QUITCOMB argument.
+
+
+
+V2.2:  (05-Jul-97)   Minor Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Fixed that nasty bug in the QUIET option that caused the samples
+    not to be deallocated.
+
+  o Fixed the bug causing wrong playback speed below 163 BPM.
+
+  o Fixed some other unimportant stuff.
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Will not use the QUIET option anymore when launching AlgoMusic
+    (there is no need for it anyway, because output is redirected
+    to NIL:).
+
+
+V2.1:  (24-May-97)   Major Update
+---------------------------------
+  I made a mistake at the second one of my two bank accounts, that has
+  been corrected in the @{"Author" link "Author" 0} section.
+
+
+  @{u}AlgoMusic:@{uu}
+
+  o AlgoMusic will from now on be available as update archive as well
+    (at least when no vital things are changed).
+
+  o Implemented the ability of setting a global finetune.
+
+  o AlgoMusic used to Lock() and Open() files instead of just Open()ing
+    them. Now fixed.
+
+  o Included some developer files. Look at Developer directory.
+
+  o Alphasorted the shell-argument template.
+
+  o In "Safe" mode, AlgoMusic did not unlock the sample directories
+    after scanning (reported by A. Benden). Now fixed.
+
+  o Included echo effects for speech samples.
+
+  o AlgoMusic's "audioport" is no longer a global system port.
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Added a slider for the finetune.
+
+  o Fixed some silly Enforcer hits (reported by A. Leidinger).
+    I used Signal() instead of SetSignal(). :(
+
+  o Now makes extensive use of MUI callback hooks. The GUI should have
+    quicker response times now.
+
+  o Reduced the graphical layout weight of the Analyzer group making more
+    space for the sliders etc.
+
+  o The song progress is displayed more smoothly now.
+
+  o Now Exchange will display and handle AlgoMusicPrefs correctly.
+
+  o All groups have proper backgrounds now.
+
+  o Rearranged the cyclechain of the objects which was rather crappy before.
+
+  o Added a "GUI" menu, where it is possible to show/hide parts of the GUI,
+    giving the user the ability to let it appear smaller (inspired by
+    C. Meilicke). Sadly, MUI cannot hide parts of a register object, so
+    the user can't hide the "Config" page. The GUI settings will be saveable
+    in the future.
+
+
+
+V2.0:  (18-Apr-97)   Major Update
+---------------------------------
+  Note that my e-mail address has changed again.  The new address is
+  "schuerge@studcs.uni-sb.de". The old address will be valid until end
+  of 1997, but please don't use it anymore.
+
+
+  @{u}AlgoMusic:@{uu}
+
+  o Immensely cleaned up code.
+
+  o Included 68040/060 version.
+
+  o Removed NOCIA and DELAY option because they were useless. Reorganized
+    argument handling as well.
+
+  o Adjusted some more samples.
+
+  o Fixed some internal bugs.
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Totally reworked the layout of the prefs program.
+
+  o Now saving and using the settings is possible.
+
+  o Added "analyzer" displaying base and clap. Nice!
+
+  o Added ability to see guide when pressing HELP.
+
+
+
+V1.8:  (30-Jan-97)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Fixed a small bug in the date of the logfile output.
+
+  o Added much better melody creation. Can be switched on using
+    "FREEMELODY" option. Does anyone know a better algorithm?
+    I hope so.. :-)
+  
+
+
+V1.7:  (01-Nov-96)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Created an AlgoMusic support site:
+
+    http://fsinfo.cs.uni-sb.de/~schuerge/AlgoMusic/
+
+  o Now 68020+ version is included (handled automatically by installer).
+
+  o Implemented ExAll() workaround for faulty comment interpretation of
+    some Kickstarts (the V1.6 workaround didn't work properly). If you
+    have any problems running AlgoMusic, just try using the SAFE switch.
+
+  o AlgoMusic can now handle samples with lengths up to 128 KB.
+
+  o Added speech support.
+
+  o Added SPEECH switch and SPEECHVOLUME argument.
+
+  o INFO will now also show needed Chipmem for used samples.
+
+  o Made Breakbeat rendering somewhat cooler.
+
+  o Random generator initialization is now more random. :)
+
+  o Now also Bass and Melody samples can make use of PHASERDEPTH and
+    PHASERSPEED sample options, making some things sound much better.
+
+  o Melody creation will now adapt to Maj/Min-4/6 chords, causing groovier
+    sounding songs.
+
+  o Changed max. BPM rate down from 225 to 200. Some Breakbeat and speech
+    samples couldn't be transposed properly (hitting the playback limit
+    of Amiga's customchips) at very high bpm rates.
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Removed Enforcer hit, which was caused when AlgoMusicPrefs was running
+    while AlgoMusic was not.
+
+  o The displayed song number was an input button instead of a normal
+    read-only gadget. Now fixed. <Claus Dyring>
+
+  o Added speechvolume slider.
+
+  o Fixed AlgoMusicPrefs <-> AlgoMusic communication bug.
+
+
+
+V1.6:  (23-Jun-96)   Minor Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Very stupid bug detected: when passing out-of-bounds values as
+    arguments, AlgoMusic caused a Software Failure. Now fixed.
+
+  o Added echo effects for acid samples.
+
+  o Implemented OS 37.x ExAll() fix. AlgoMusic could not correctly
+    read filecomments due to an error in 37.x's (Fast)Filesystem.
+    Now AlgoMusic will really work on all Amiga OS versions starting
+    with OS 2.0. <Michael van Elst>
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Added more menu and keyboard shortcuts.
+
+
+
+V1.5:  (10-Jun-96)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Totally reworked sample organisation. Now they are randomly read
+    out of directories.
+
+  o Samples can be configured by attaching a standard template-style
+    filenote to them. Have a look at the readme-files in the sample
+    directories to see how it works.
+
+  o Fixed a bug that didn't set the upper and lower bpm limit correctly.
+
+  o Removed that nasty bug that played a strange "beeep" sometimes. It
+    will never appear again!
+
+  o Changed the internal chord-structure. Now also Maj6, Min6, Maj64 &
+    Min64 is possible. Makes everything sound much nicer! ;)
+
+  o Reduced used player-cpu-time a bit.
+
+  o Breaking AlgoMusic just by running it again is not possible anymore.
+    It must now be broken using an argument switch (QUIT).
+
+  o Uses real task communication now. You can ask a running AlgoMusic
+    process about the songname and initnumber of the song currently
+    being played. Just run AlgoMusic again without arguments to see
+    that information. You can also change volumes and playing speeds
+    while playing.
+
+  o Added much more structures.
+
+  o Added five more switches: NEWSONG, QUIT=BREAK, NOENV, STOP and
+    CONT=CONTINUE.
+
+  o Added ability to set volumes for each type of sample. Added ability
+    to set volume for each individual sample as well. Can be done by
+    using "VOLUME=x" in the filenote of a sample.
+
+  o Ability of using a non-CIA (=VBI) player has been removed. This
+    is due to different screen refresh rates in different screenmodes
+    which would result in awkyard breakbeat sample periods and different
+    playing speeds. Noone uses it, anyway (I hope). A CIA-timed player
+    is much nicer.
+
+  o Started working on AlgoMusicPrefs for MUI.
+
+  o Added ability to specify a logfile. This can be done by setting
+    "LOGFILE <Filename>" in the arguments. <Agust Arni Jonsson>
+
+  o Added ECHO switch. With it, you can switch on the usage of
+    echo-effects.
+
+  o AlgoMusic is now able to fade in and fade out any of its voices.
+
+  o Now an Installer-script is included for easy installation.
+
+  o Added INFO switch. It will show you lots of information about
+    the current song.
+
+  o Fixed a bug in INFO generation. AlgoMusic could only display
+    that info when launched while the prefsprogram was active.
+
+  o AlgoMusic will now show the sample's name and comment if
+    something is wrong with its comment. You can then easily fix it.
+
+  o Removed all Enforcer hits.
+
+  o Now AlgoMusic will show all errors using system requesters.
+
+  o Logfile output includes AlgoMusic version and creation date now.
+
+
+  @{u}AlgoMusicPrefs:@{uu}
+
+  o Added Bubble-Help for most of the groups/buttons shown.
+    Saving etc. is not possible yet.
+
+  o Added "Info" button, which shows just the same thing like when using
+    the INFO switch.
+
+  o Now ALL AlgoMusicPrefs-windows can be closed via closegadget. :)
+
+  o The most needed buttons now have a keyboard shortcut.
+
+  o The information-listview is not an input-list anymore.
+
+  o The different groups and the "About" window in the GUI have other
+    backgrounds now.
+
+
+
+V1.4:  (16-Oct-95)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Added breakbeats! I don't know anymore who proposed that, but I liked
+    the idea! Can be enabled using the BREAKBEAT switch.
+
+  o Small bug: BPM rate could not be set below 84.
+
+  o Changed to Giftware!
+
+
+
+V1.3:  (13-May-95)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Included a nice CIA timer for playing.
+
+  o Added option NOCIA which plays just the former way (using Delay()).
+
+  o Added the ability to set the BPM rate per argument.
+
+  o Added acid-style sample and option ACID.
+
+  o Now outputs the random seed.
+
+  o Added the abilitity to set the random seed as a hex value via
+    RANDOMINIT/INIT argument.
+
+  o Found out how to play a sample without automatic repetition... ;)
+    The samples all used to have quite a big zero-byte buffer behind them.
+    This has been changed -> AlgoMusic is MUCH shorter now!
+
+  o Rewrote the song creation algorithm. There used to be only four chords
+    per pattern and fixed bass/melody sequences (16 steps long). This has
+    been changed. Now the chords can span over several patterns and can be
+    changed quicker etc.
+
+  o Added the ability to put one's favourite arguments into a variable
+    called "ENVARC:AlgoMusic.prefs". Look at the "Usage" section to find
+    out more about this.
+
+  o Now, "INIT $0" is possible. It turns the pseudo-random random seeding
+    back on. Not bad if you have specified an init-value in the ENV-variable
+    and want to specify in the shell arguments to have real randomization
+    again.
+
+  o Rhythms don't sound as monotonous as before.
+
+  o Now allocates audiochannels. May be disabled using NOALLOC.
+
+  o Now songs have names. >;-)
+
+  o Switched to an AmigaGuide documentation.
+
+
+
+V1.2:  (18-Apr-95)   Major Update
+---------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Added optional fadeout at the end of the song.
+
+  o Now at least Kick 2.0 (V36) is required (!).
+
+  o Added proper argument handling by using ReadArgs().
+
+  o Added new switches: FOREVER, QUIET, FILTER and NOFADE.
+
+  o Added the ability to set VOLUME.
+
+  o Added some more rhythms, chords, basses and melodies.
+
+  o Enhanced random generator.
+
+
+
+V1.1:  (12-Apr-95 afternoon)   Minor Update
+-------------------------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o Added the ability to choose playing speed per argument.
+
+  o Used better rhythm samples (basedrum, clap).
+
+  o Added other chords, basses & melodies.
+
+  o Added version-string. :)
+
+  o Added more freedom for creating the song-structure.
+
+
+
+V1.0:  (12-Apr-95 2:00 a.m)
+---------------------------
+  @{u}AlgoMusic:@{uu}
+
+  o First public release.
+@endnode
+
+@node "Future" "Future"
+The Future of AlgoMusic
+-----------------------
+  I will continue working on AlgoMusic in the future, because I have already
+received  a  lot  of  feedback. Of course, more gifts or financial donations
+would morally support me as well!
+
+  Many  people  have  suggested  to  make AlgoMusic save a created module in
+Protracker-format. This is not what AlgoMusic is supposed to do. My replayer
+is  much  shorter  than  any  Protracker-replayer,  and  AlgoMusic itself is
+shorter  than  the  resulting module would be, so I will NOT include that in
+the future!
+
+  If  you  still  want  module  saving,  you  don't  seem to have understood
+AlgoMusic's aim. :*)
+
+
+Things to be added:
+-------------------
+  o Better melody creation.
+
+
+  If you've got other wishes for improvement, please contact @{"me" link "Author" 0}.
+
+  I will, of course, add much more customization. Be prepared for it! :)
+@endnode
+
+@node "Wanted" "Wanted"
+Samples
+-------
+  I  could need a lot of more samples for AlgoMusic, especially cool speech,
+rhythm  and  acid  samples (others are welcome as well). If you've got some,
+please  pick  only  the  best,  configure  them (with filenotes) and send me
+those. LZX or LHA packed will work best.
+
+  Please  don't send me hundreds of kilobytes of samples. You shouldn't send
+me archives with more than 500 KB.
+
+  If  I  receive  enough  more  samples  that I find usable, I will probably
+release an Additional AlgoMusic Sample Archive.
+
+
+Icons
+-----
+  I  need  someone  who draws some nice icons for AlgoMusic. There should be
+normal 4 color, MagicWB and possibly NewIcon icons available.
+@endnode
+
+@node "Credits" "Credits"
+  I would specially like to thank the following people for their support and
+help:
+
+  - Rüdiger Prang         o My betatesters
+  - Katrina Ratzlaff
+  - Sascha Dages
+  - Stefan Redel
+  - Maic Striepe
+  - Douglas Baigrie         
+  - Graeme Marshall
+  - Agust Arni Jonsson
+  - Hans Raaf
+
+  - Kari-Pekka Koljonen   o Supplied me with a nice CIA-timing-routine.
+
+  - Richard Körber        o Reported some bugs, sent me a source for
+                            audiochannel allocation.
+
+  - Ville Ranki           o Drew that nice ToolBrush icon for AlgoMusic.
+
+  - Felix Müller          o Reported a bug.
+
+  - Michael van Elst      o Sent me a Kickstart 37.15 ExAll()-problem
+                            workaround.
+
+  - Alexander Leidinger   o Sent me an Enforcer hit list.
+
+  - Linus Akesson         o Sent me some useful hints about notification.
+
+  - Andreas Benden        o Reported a bug and made his BBS AlgoMusic's
+                            support BBS.
+
+  - Carol Meilicke        o Sent me some nice ideas.
+
+  - Jim Maciorowski       o Also sent me some nice ideas.
+
+  - David Patterson       o Drew those nice MagicWB and NewIcon icons
+
+  
+
+  Other special thanks to:
+
+  - R. Cant               o Thanks for letter and disks!
+
+  - Humanoid/Embassy      o Sent me some cool mods/samples.
+  - Durandal/dECiSiON
+  - Ramon Bleche
+
+  - Conny Cyréus          o I used some of their samples from
+    Christian Cyréus        their cool MusicLineEditor.
+
+  - Mark Hillebrand       o Gave me some useful hints about creating
+                            melodies.
+
+
+  And  thanks  to  @{b}all@{ub}  the  other  people that sent me a mail about any of
+the previous versions!
+@endnode
+
+@node "Support" "Support"
+  You  will find updates of AlgoMusic, announcements and possibly additional
+sample archives on the AlgoMusic Support Site:
+
+  @{b}http://fsinfo.cs.uni-sb.de/~schuerge/AlgoMusic/@{ub}
+
+or
+
+  @{b}http://algomusic.home.pages.de@{ub}
+
+
+  Just have a look inside there regularly and leave me your comments.  It is
+also  possible  to  register  your  e-mail  address  there  so  that you are
+automatically informed if something changes on the page.
+
+
+  You can also grab AlgoMusic from Eratosthenes BBS in Germany, which
+currently has two lines for downloading.
+
+  The numbers are:
+
+    (+49) 228 / 230083   (28.8k V.FC)
+    (+49) 228 / 239522   (28.8k V.34/V.FC/ISDN)
+
+  The login name is "support", the files can be found in
+  "Support/AlgoMusic/Komplett" for the full archives and in
+  "Support/AlgoMusic/Updates" for the update archives.
+
+
+
+Remember: The availability of additional sample archives depends on you
+          (as a user) sending me samples!
+@endnode
+
+@node "Author" "Author"
+  If you like AlgoMusic, or even if you don't (but then let me know why), if
+you  have any suggestions, questions or ideas, or if you have found any bugs
+(even in this guide), send a mail to:
+
+    @{b}schuerge@cs.uni-sb.de@{ub}
+
+  When writing mails, please let the message subject begin with "AlgoMusic".
+It just makes things easier!
+
+
+  For those still not being able to send e-mails or those who would like to
+send me gifts:
+
+  My snail-mail-address:
+
+  Thomas Schürger
+  Birkenbusch 39
+  53757 Sankt Augustin
+  Germany
+
+  Tel.: Germany        02241/331935 (voice)
+        Worldwide  (+49)2241/331935
+
+
+  My bank account:
+
+  KNR: 0132107632
+  BLZ: 386 500 00         Kreissparkasse Siegburg
+
+  or
+
+  KNR: 8781990
+  BLZ: 590 200 90         Bayerische Vereinsbank
+
+
+
+  If you consider sending me money, please do not send more than 30.- DM
+(or $20 US).
+
+
+  Please contact me, I would be very pleased to receive a lot of feedback.
+
+
+-------------
+
+  Have a look at AlgoMusic's webpage:
+
+    http://fsinfo.cs.uni-sb.de/~schuerge/AlgoMusic/
+
+  or
+
+    http://algomusic.home.pages.de
+
+-------------
+
+  @{u}Please rate AlgoMusic on Aminet!@{uu}
+
+  Simply send a message with no subject.
+
+  Recipient: Aminet-Server@aminet.org
+   Contents: rate mus/misc/AlgoMusic2_4.lha <number>
+
+  where <number> is a number from 1 to 10, 10 is the best.
+
+  You'll get a mail back from the server telling you whether it
+  worked or not.
+
+  Please don't rate AlgoMusic update archives, simply rate the
+  full installation archives as instructed above!
+
+-------------
+
+
+  My (new) PGP-key:   (use it if possible!)
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: 2.6.2i
+
+mQCNAi6SRPYAAAEEAMHGFQM/HLl5g+IoORD+ErAru7Dd17S1OkqyD2t6qWDGjTPE
+ym7bd1ESLoWeXtfNiqvkbdeV9gELmFZ8cT5uKicesCMZkOtIuu23rDLccIXClQU+
+RU1sVsTAub2Gm4RSg15XrMipqC5Waf/+QAlwlq6u5qtjVgMAMys4JdI2NDr5AAUR
+tCxUaG9tYXMgU2NodWVyZ2VyIDxzY2h1ZXJnZUBzdHVkY3MudW5pLXNiLmRlPokA
+lQMFEDNOIzArOCXSNjQ6+QEB6UoD/RSN1etrKMdUNHX5lL0RO1TQ5tEjldVOIT2D
+LfgHiQyTd5fMIXRMmkGbq7CT6XaFHrtMeX+Aoim8hlmifIYrRw65Cf4bf0ZH361C
+TLRKAUP9c175+PwRTgW6j9nfzxn87iH4PvI5euHkFrwRUaFRYIsJykP9RST9Yzb4
+6di/Vt/stDNUaG9tYXMgU2NodWVyZ2VyIDxwaG9ib3NAZXJhdG9zdGhlbmVzLnN0
+YXJmbGVldC5kZT60KlRob21hcyBTY2h1ZXJnZXIgPHRoc2MwMDM0QHN0dWQudW5p
+LXNiLmRlPrQoVGhvbWFzIFNjaHVlcmdlciA8THVDb1NvdW5kQGxjcy5uZGguY29t
+PokAlQIFEDEQEYFnr75Hg1T9PQEBPqMEAJaqnwXs81kE1Egi6IHAJfkLgzV9KbHo
+EOi6fcTaHc3s5dxnrfg4Ok9EHVBMN5/KXsEiqWtQKiy1Gju72fvyTb9w+y+ivVgs
+Yc4hbxdqL7SP4GyYIfESNOiEU/npxPG7NEMhVkbY+ZVmJPT3LMeVUeW7v9OJl440
+YicfGqukYyLAiQCVAgUQMP15Rw9HL1s0103BAQFG/QP+J9/mK6Suq4eXNDDZrPR4
+LBq5q0jJ1jOklDaeU0kWP5uFqc4rEH9WFgYnM6elh8FH34EAaQ3Mv1U4dEm9hWX8
+t6DfR2fq6lYtX4jqbOj4bP3kx7O124GzAqayaDnUPr8B7MBEhKbSHdMMJk/UR2K6
+cYPLNH3uzsycrqk19V82m92JAJUDBRAw/MPncqSEZlUpkBkBAadKA/4ytaGvnKhZ
+0Rgt6Gvn0vJ4LRcibR74fq1DfWigflbHTCkHBEqSKt+NKlrK3S83g6RCx1HYTSo3
+xxzl51Wd9ewfaW5cCPAExlk0Zpd/yLQNeVQAPoYDQrBq51sowtDC1xkyZDpX1Xu2
+5jVqeiKWTqYaNMQHzQxvUOj5rL+U7xxp44kAlQMFEDD72zQrOCXSNjQ6+QEB6a4E
+AJe6QpnfqJU9BMWLaDmQ/fVOdWJnx9+9+W1/gNQktrEho7kSAiBbPw0MLsCNUo7t
+APQZJrRuNBOTSi4DbopACACw3CGxoyRaIbPX1SU1QtDPRcOgCpfp41sPAeJ6Q60r
+//NTKTxyytYAc1qh1EXdT4VbIBMvG2GPllDiX2T470BO
+=qzoD
+-----END PGP PUBLIC KEY BLOCK-----
+@endnode
+
+@node "Registration" "Registration"
+  Registration is not possible yet, but you may very well contact the
+@{"Author" link "Author"} about that (silly questions are welcome!).
+@endnode

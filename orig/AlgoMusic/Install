@@ -1,0 +1,411 @@
+; AlgoMusic Install Utility
+; (C) 1997 by Thomas Schürger
+; REMEMBER THAT ALGOMUSIC IS >GIFTWARE<!!
+
+; $VER: AlgoMusicInstall 2.4 (20.08.98)
+;
+; Script will auto-detect 68020/030, 68040/060
+; and also update/full install archive.
+;
+; If you find any problems in this script, please
+; send me a bug-report including the line where
+; the Installer is complaining!
+
+
+(set #minupdateversion "2.0")
+
+; Do not allow Novice User (when running from Shell)
+
+(if (= @user-level 0)
+    (set @user-level 1)
+)
+
+; Get AlgoMusic version of the version present in install directory
+
+(set #algoverlong (getversion "AlgoMusic.000"))
+
+(if #algoverlong
+  (
+    (set #algoversion (/ #algoverlong 65536 ))
+    (set #algorevision (- #algoverlong (* #algoversion 65536 )))
+  )
+
+  (
+    (set #algoversion "x")
+    (set #algorevision "x")
+  )
+)
+
+(set #update (not (exists "Melody")))
+
+(set #versionstring (cat #algoversion "." #algorevision))
+
+; Set texts to language (locale)
+; Set to German if available, English otherwise
+
+(if (not (patmatch "(68000|68010)" (database "cpu")))
+   (if (not (patmatch "(68020|68030)" (database "cpu")))
+     (
+     set #cputypenr "2"
+     )
+
+     (
+     set #cputypenr "1"
+     )
+   )
+
+   (
+   set #cputypenr "0"
+   )
+)
+
+(if (= @language "deutsch")
+  (
+   (set #installerversion  "Sie haben eine veraltete Version des Installers installiert.\n\nDie neue Version unterstützt u.a. neue Features. Sie ist z.B. im Aminet erhältlich.\n\nBitte installieren Sie diese demnächst!")
+   (set #welcometext       (cat "Willkommen zum Installationsprogramm für AlgoMusic V" #versionstring ", dem ultimativen Programm für algorithmische Musik auf Ihrem Amiga.\n\nEinfache und intuitive Installation ist garantiert."))
+   (set #wrongosversion    "Sie benötigen mindestens Amiga OS 2.0 (V36) für AlgoMusic.\n\nBitte unterstützen Sie den Amiga und rüsten Sie auf das jeweils neueste Betriebssystem auf.\n\nEs ist dringendst anzuraten und lohnt sich!")
+   (set #algomusicexists   "Sie haben im angegebenen Pfad AlgoMusic bereits installiert. Soll dieses Verzeichnis in \"AlgoMusic.old\" umbenannt werden und AlgoMusic ins angegebene Verzeichnis installiert werden oder möchten Sie die vorhandene Version überschreiben (dabei gehen auch alle Samples usw. verloren)?")
+   (set #cpuversion        "Welche Prozessorversion von AlgoMusic möchten Sie installieren?")
+   (set #existsrename      "Umbenennen")
+   (set #existsoverwrite   "Überschreiben")
+   (set #destinationprompt (cat "Wählen Sie das Verzeichnis, in das AlgoMusic %s installiert werden soll. Ein neues Verzeichnis namens \"AlgoMusic\" wird dort erstellt."))
+   (set #destinationupdateprompt (cat "Wählen Sie das Verzeichnis, in dem das AlgoMusic-Verzeichnis bereits installiert ist. Mindestens Version " #minupdateversion " muß dort vorhanden sein.\n\nEs werden dort nur die benötigten Files upgedatet."))
+   (set #installicons      "Welche Arten von Icons sollen für AlgoMusic verwendet werden?")
+   (set #copyingtext       "Kopiere benötigte Dateien in das Verzeichnis\n\n\"%s\"")
+   (set #prefsrenamed      "Sie hatten bereits Voreinstellungen für AlgoMusic in Ihrem ENVARC: Verzeichnis. \"AlgoMusic.prefs\" wurde dort in \"AlgoMusic.prefs.old\" umbenannt.\n\nVergleichen Sie am besten nach durchgeführter Installation beide Files und sehen Sie nach, was Sie in die neuen Prefs übernehmen möchten.")
+   (set #seehistoryprompt  "Möchten Sie sich das History-File von AlgoMusic ansehen?")
+   (set #seehistoryhelp    "AlgoMusic hat bei jeder neuen Version eine Reihe von neuen Features und Bugfixes. Lesen Sie sich am besten durch, was bei dieser Version verbessert und ergänzt wurde.")
+   (set #addpathprompt     "Das AlgoMusic-Verzeichnis sollte in den Systempfad mit aufgenommen werden. Soll dies automatisch in der User-Startup für Sie erledigt werden oder wollen Sie es selber durchführen?")
+   (set #userstartup       "Die folgenden Zeilen werden an Ihre User-Startup angehängt:\n\n")
+   (set #userstartupauto   "Automatisch")
+   (set #userstartupmanu   "Selber")
+   (set #installdeveloper  "Möchten Sie die Entwickler-Dateien für AlgoMusic installieren?\n\nFür den normalen Gebrauch werden sie nicht benötigt, für Programmierer existiert jedoch ein interessantes Interface, um z.B. Analyzer oder ähnliches zu programmieren.")
+   (set #giftware          "Bitte denken Sie daran, daß AlgoMusic GIFTWARE ist\n(die meisten Benutzer scheinen dies zu vergessen).\n\nSie müssen bei Gefallen dem Autor ein kleines Geschenk schicken. Lesen Sie dazu auch im Guide nach!\n\n\n\nViel Spaß,\n\nThomas Schürger.")
+   (set #delold            "AlgoMusic ist installiert. Wenn Sie von der neuen Version überzeugt sind, können Sie nach kurzer Zeit das Verzeichnis \"%s\" löschen.")
+  )
+
+  ( 
+   (set #installerversion  "You've got an old version of the Installer installed.\n\nThe new version has lots of new features and improvements. It's available on Aminet, for example.\n\nPlease install it as soon as possible!")
+   (set #welcometext       (cat "Welcome to the installation utility for AlgoMusic V" #versionstring ", the ultimate program for algorithmic music on your Amiga.\n\nEasy and intuitive installation is guaranteed."))
+   (set #wrongosversion    "AlgoMusic requires at least Amiga OS 2.0 (V36).\n\nPlease support your beloved computer by installing the newest Amiga operating system available.\n\nIt's worth it for sure!")
+   (set #algomusicexists   "You've already got AlgoMusic installed in the path specified. Would you like to rename the existing directory to \"AlgoMusic.old\" and install the new version or would you like to overwrite the old version (all samples etc. will be lost)?")
+   (set #cpuversion        "Which CPU version of AlgoMusic would you like to install?")
+   (set #existsrename      "Rename")
+   (set #existsoverwrite   "Overwrite")
+   (set #destinationprompt "Select a destination for AlgoMusic %s. A new drawer called \"AlgoMusic\" will be created there.")
+   (set #installicons      "Which type of icons should be installed for AlgoMusic?")
+   (set #destinationupdateprompt (cat "Select the directory where the AlgoMusic directory has already been installed. At least V" #minupdateversion " must be present there.\n\nOnly the required files will be updated."))
+   (set #copyingtext       "Copying required files to:\n\n\"%s\"")
+   (set #prefsrenamed      "You already had preferences for AlgoMusic in your ENVARC: directory. \"AlgoMusic.prefs\" has been renamed to \"AlgoMusic.prefs.old\".\n\nPlease compare both files and decide which of the old preferences you would like to transfer to the new prefs-file after the installation has been completed.")
+   (set #seehistoryprompt  "Would you like to see the history of AlgoMusic?")
+   (set #seehistoryhelp    "AlgoMusic has a lot of new features and bugfixes with each version. You may want to see what has been changed and improved in this version.")
+   (set #addpathprompt     "You should include the AlgoMusic-directory in your system path. Would you like this to be done automatically or would you like to do it by hand?")
+   (set #userstartup       "The following lines will be appended to your user-startup:\n\n")
+   (set #userstartupauto   "Automatically")
+   (set #userstartupmanu   "By hand")
+   (set #installdeveloper  "Would you like to install the developer files for AlgoMusic?\n\nThey are not required for normal use, there is an interesting interface for developers to program analyzers etc., however.")
+   (set #giftware          "Remember that AlgoMusic is GIFTWARE\n(most people seem to forget that).\n\nYou are asked to send me a gift if you like this program. Read the guide for further information!\n\n\n\nHave fun!\n\nThomas Schürger")
+   (set #delold            "AlgoMusic is now installed. If you are convinced by the new version, you can delete the directory \"%s\" after a while.")
+  )
+)
+
+; Welcome the user
+
+(welcome #welcometext)
+
+; Get Amiga OS version
+
+(set #osversion (/ (getversion "exec.library" (resident)) 65536 ))
+
+(if (< #osversion 36 )
+  (exit #wrongosversion (quiet))
+)
+
+; Remind user if having installed an old Installer
+
+(if (= @installer-version "")
+  (message #installerversion)
+)
+
+(set #cputypenr
+   (askchoice
+      (help @askdir-help)
+      (choices "68000" "68020/030" "68040/060")
+      (default #cputypenr)
+      (prompt #cpuversion)
+   )
+)
+
+(if (= #cputypenr "0")
+   (set #cputype "68000")
+   
+   (if (= #cputypenr "1")
+      (set #cputype "68020/030")
+      (set #cputype "68040/060")
+   )
+)
+
+(complete 5)
+
+; Select appropriate destination directory
+
+(run "which AlgoMusic >env:AlgoMusic.temp")
+(set #contents (getenv "AlgoMusic.temp"))
+
+(set #destdir (askdir
+                 (prompt (if #update #destinationupdateprompt (#destinationprompt #cputype)))
+                 (default 
+                    (if (strlen #contents)
+                       (pathonly (pathonly #contents))
+                       (expandpath (if (exists "AlgoMusic:" (noreq))
+                                           "AlgoMusic:/"
+                                      (if (exists "Music:" (noreq))
+                                           "Music:"
+                                      (if (exists "Sound:" (noreq))
+                                           "Sound:"
+                                      (if (exists "Work:" (noreq))
+                                           "Work:" "SYS:"
+                                      )))))
+                    )
+                 (newpath)
+                 (help @askdir-help)
+            )
+         )
+)
+
+(set #fulldestdir (tackon #destdir "AlgoMusic"))
+(set #fullolddir  (tackon #destdir "AlgoMusic.old"))
+(set @default-dest #fulldestdir)
+
+(complete 10)
+
+(set renamed 0)
+
+; Check if AlgoMusic already exists in selected directory
+
+(if (not #update)
+  (
+   (if (exists #fulldestdir)
+      (
+         (if (askbool
+                (prompt #algomusicexists)
+                (default 1)
+                (choices #existsrename #existsoverwrite)
+                (help @askbool-help)
+             )
+
+             (
+                (run (cat "Delete " #fullolddir " ALL QUIET"))
+                (rename #fulldestdir #fullolddir)
+                (set #renamed 1)
+             )
+             (
+                (run (cat "Delete " #fulldestdir " ALL QUIET"))
+                (run (cat "Delete " #fullolddir " ALL QUIET"))
+             )
+          )
+       )
+   (makedir #fulldestdir (infos))
+   )
+  )
+)
+
+(complete 20)
+
+(set #developer (askbool
+       (prompt #installdeveloper)
+       (default 1)
+       (help @askbool-help))
+)
+
+(complete 25)
+
+(set #iconset (askchoice
+       (prompt #installicons)
+       (default 1)
+       (help @askchoice-help)
+       (choices "Normal WB (4 colors)" "MagicWB   (8 colors)" "NewIcons  (16 colors)"))
+)
+
+(complete 30)
+
+(working (#copyingtext #fulldestdir))
+
+(copyfiles
+   (source "")
+   (dest #fulldestdir)   
+   (all)
+   (optional (nogauge))
+)
+
+(complete 80)
+
+; Check if AlgoMusic preferences already exist
+
+(if (exists "ENVARC:AlgoMusic.prefs"))
+   (
+   (delete "ENVARC:AlgoMusic.prefs.old")
+   (rename "ENVARC:AlgoMusic.prefs" "ENVARC:AlgoMusic.prefs.old")
+   (message #prefsrenamed)
+   )
+
+(copyfiles
+   (source "AlgoMusic.prefs")
+   (dest "ENVARC:")
+   (nogauge)
+)
+
+(if (exists "ENV:AlgoMusic.prefs"))
+   (
+   (delete "ENV:AlgoMusic.prefs.old")
+   (rename "ENV:AlgoMusic.prefs" "ENV:AlgoMusic.prefs.old")
+   )
+
+(copyfiles
+   (source "AlgoMusic.prefs")
+   (dest "ENV:")
+   (nogauge)
+)
+
+(delete (tackon #fulldestdir "Install"))
+(delete (tackon #fulldestdir "Install.info"))
+(delete (tackon #fulldestdir "AlgoMusic.prefs"))
+
+(if #update
+  (
+    (delete (tackon #fulldestdir "AlgoMusic"))
+    (delete (tackon #fulldestdir "AlgoMusicPrefs.info"))
+    (delete (tackon #fulldestdir "AlgoMusic.info"))
+  )
+)
+
+(if (= #cputype "68020/030")
+   (
+   (delete (tackon #fulldestdir "AlgoMusic.000"))
+   (delete (tackon #fulldestdir "AlgoMusic.040"))
+   (rename (tackon #fulldestdir "AlgoMusic.020") (tackon #fulldestdir "AlgoMusic"))
+   )
+
+  (if (= #cputype "68040/060")
+     (
+     (delete (tackon #fulldestdir "AlgoMusic.000"))
+     (delete (tackon #fulldestdir "AlgoMusic.020"))
+     (rename (tackon #fulldestdir "AlgoMusic.040") (tackon #fulldestdir "AlgoMusic"))
+     )
+
+     (
+     (delete (tackon #fulldestdir "AlgoMusic.020"))
+     (delete (tackon #fulldestdir "AlgoMusic.040"))
+     (rename (tackon #fulldestdir "AlgoMusic.000") (tackon #fulldestdir "AlgoMusic"))
+     )
+  )
+)
+
+(if (not #developer)
+   (
+      (delete (tackon #fulldestdir "Developer") (all))
+   )
+)
+
+(delete (tackon #fulldestdir "AlgoMusic.info"))
+(delete (tackon #fulldestdir "AlgoMusicPrefs.info"))
+
+(if (= #iconset 0)
+   (
+   (rename (tackon #fulldestdir "icons/AlgoMusicRegular.info") (tackon #fulldestdir "AlgoMusic.info"))
+   (rename (tackon #fulldestdir "icons/AlgoMusicPrefsRegular.info") (tackon #fulldestdir "AlgoMusicPrefs.info"))
+   )
+
+   (if (= #iconset 1)
+      (
+      (rename (tackon #fulldestdir "icons/AlgoMusicMagicWB.info") (tackon #fulldestdir "AlgoMusic.info"))
+      (rename (tackon #fulldestdir "icons/AlgoMusicPrefsMagicWB.info") (tackon #fulldestdir "AlgoMusicPrefs.info"))
+      )
+
+      (
+      (rename (tackon #fulldestdir "icons/AlgoMusicNewIcons.info") (tackon #fulldestdir "AlgoMusic.info"))
+      (rename (tackon #fulldestdir "icons/AlgoMusicPrefsNewIcons.info") (tackon #fulldestdir "AlgoMusicPrefs.info"))
+      )
+   )   
+)
+
+(delete (tackon #fulldestdir "icons") (all))
+
+
+(set #uschanges (cat "Path \"" #fulldestdir "\" ADD"))
+
+(complete 85)
+
+; Ask if user wants to automatically set system path to AlgoMusic or not
+
+(if (not #update)
+   (
+
+      (if (askbool
+             (prompt #addpathprompt)
+            (default 1)
+            (help @askbool-help)
+            (choices #userstartupauto #userstartupmanu)
+          )
+
+          (
+             (startup "AlgoMusic"
+                (command #uschanges)
+                (prompt (cat #userstartup ";BEGIN AlgoMusic\n" #uschanges "\n;END AlgoMusic"))
+                (help @startup-help)
+             )
+          )
+      )       
+
+      (complete 90)
+
+      (if #renamed
+         (message (#delold #fullolddir))
+      )
+   )
+)
+
+(complete 95)
+
+; Ask if user wants to see the history guide of AlgoMusic
+
+(run "which AmigaGuide >env:AlgoMusic.temp")
+(set #contents (getenv "AlgoMusic.temp"))
+(delete "env:AlgoMusic.temp")
+
+(if (strlen #contents)
+  (
+    (set #contents (substr #contents 0 (- (strlen #contents) 1 ) ) )
+    (if (askbool
+           (default 1)
+           (prompt #seehistoryprompt)
+           (help #seehistoryhelp)
+        )
+        (run (cat #contents " AlgoMusic.guide DOC History"))
+    )
+  )
+  
+  (
+    (run "which Multiview >env:AlgoMusic.temp")
+    (set #contents (getenv "AlgoMusic.temp"))
+
+    (if (strlen #contents)
+      (
+        (set #contents (substr #contents 0 (- (strlen #contents) 1 ) ) )
+        (if (askbool
+               (default 1)
+               (prompt #seehistoryprompt)
+               (help #seehistoryhelp)
+            )
+            (run (cat #contents " AlgoMusic.guide"))
+        )
+      )
+    )
+  )
+)
+
+(complete 100)
+
+; Present the cute Giftware message
+
+(message #giftware)

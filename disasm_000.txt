@@ -1,0 +1,57 @@
+AlgoMusic.000 (0.0014s) TYPE_LOADSEG 
+	      header (segments: first=0, last=5, table size=6)
+	#000  CODE   size 0000dfec  alloc size 0000dfec  file header @0000002c  data @00000034  
+		   reloc  absreloc32 #6
+			To Segment #0:   31 entries
+			To Segment #1:  333 entries
+			To Segment #2:  714 entries
+			To Segment #3:   23 entries
+			To Segment #4:    1 entries
+			To Segment #5:  203 entries
+Traceback (most recent call last):
+  File "/home/mark/.local/bin/hunktool", line 6, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/tools/hunktool.py", line 315, in main
+    res = cmd.run()
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/tools/hunktool.py", line 126, in run
+    ok = scanner.scan(path)
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/scan/FileScanner.py", line 38, in scan
+    return self._scan_file(path)
+           ~~~~~~~~~~~~~~~^^^^^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/scan/FileScanner.py", line 80, in _scan_file
+    return self.scan_obj(sf, False)
+           ~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/scan/FileScanner.py", line 56, in scan_obj
+    ok = self._call_handler(sf)
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/scan/FileScanner.py", line 100, in _call_handler
+    return self.handler(scan_file)
+           ~~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/tools/hunktool.py", line 106, in process_file
+    return self.handle_file(path, hunk_file, result, delta)
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/tools/hunktool.py", line 85, in handle_file
+    ok = self.handle_hunk_file(path, hunk_file)
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/tools/hunktool.py", line 159, in handle_hunk_file
+    hs.show_segments()
+    ~~~~~~~~~~~~~~~~^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/binfmt/hunk/HunkShow.py", line 40, in show_segments
+    self.show_loadseg_segments()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/binfmt/hunk/HunkShow.py", line 65, in show_loadseg_segments
+    self.show_segment(segment, self.segments)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/binfmt/hunk/HunkShow.py", line 128, in show_segment
+    disas = HunkDisassembler.HunkDisassembler(cpu=self.cpu)
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/binfmt/hunk/HunkDisassembler.py", line 7, in __init__
+    self.disasm = DisAsm.create(cpu)
+                  ~~~~~~~~~~~~~^^^^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/vamos/machine/disasm.py", line 14, in create
+    machine = Machine(cpu_type=cpu_type)
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/vamos/machine/machine.py", line 124, in __init__
+    self._setup_handler()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/home/mark/.local/lib/python3.13/site-packages/amitools/vamos/machine/machine.py", line 213, in _setup_handler
+    self.traps.set_exc_func(self._trap_exc_handler)
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'machine68k.Traps' object has no attribute 'set_exc_func'

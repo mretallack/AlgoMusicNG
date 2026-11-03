@@ -1,0 +1,6 @@
+BPM=160 FINETUNE=100 VOLUME=64 CVOL=64 BVOL=64 DVOL=64 BBVOL=64 MVOL=64 AVOL=64 SVOL=64 NEWSONGCOMB=LMB+RMB QUITCOMB=LMB+MMB+RMB BREAKBEAT ACID SPEECH ECHO FOREVER LOGFILE="ram:AlgoMusic.log"
+---------------------------------------------------------------------
+This prefs-file must be copied to ENVARC:. AlgoMusic will not look in
+the current directory for it.   The prefs above are just in the style
+you would expect them to be (like the shell-arguments).   The options
+need to be in the first line of this file ONLY,  the rest is ignored.

@@ -123,20 +123,34 @@ caller reads. So they shift *nothing*.
    (the new `render_samples` already plays the *real* 8SVX bank, so the timbre
    is right; the sample-level timing/offsets are not yet bit-exact).
 
-**Verification / ground truth.** The original is a shell tool but needs
-`graphics.library` + `intuition.library` and direct hardware access. Under
-`vamos` (`pip install 'amitools[vamos]'`) it now starts: it locks `PROGDIR:`
-for its data, scans every sample directory and creates its `AlgoMusic.port`,
-with `graphics.library` supplied via `-O graphics.library=mode:fake,...`. It
-then exits cleanly *before* the play loop (no `LOG=` line), because the
-intuition/audio state it expects is absent. So we still have no ground-truth to
-diff. A real FS-UAE/WinUAE + Kickstart run would emit the
+**Verification / ground truth.** The original now runs under `vamos`
+(`pip install 'amitools[vamos]'`) far enough to generate a song and write its
+`LOG=` file — that line is our byte-exact reference. This required teaching
+vamos the `DOS ExAll` call the sample loader relies on; apply the shim with
 
-```
-Date  Time  Songname  Randominit  Nr  Length
+```sh
+python3 tools/patch_vamos_exall.py
 ```
 
-log line to validate the port.
+then run (see `docs/groundtruth.md` for the full recipe):
+
+```sh
+cd full/AlgoMusic
+timeout 60 ~/.local/bin/vamos -q -V "Work:$PWD" -a "PROGDIR:Work:" \
+  -O "graphics.library=mode:fake,version:40,num_fake_funcs:300" \
+  Work:AlgoMusic.000 NOENV SAFE INIT '$4002' LOG=gt.log NOALLOC
+```
+
+which emits
+
+```
+Date      Time   Songname                           Randominit  Nr  Length
+03-11-26 21:01  Where's that elderly jogger?        $00004002   1 (02m 36s)
+```
+
+A table of seed -> song-name references lives in `docs/groundtruth.md`. The
+emulator still faults in the Paula/audio layer *after* the log line is written,
+which does not affect the reference.
 
 ## Legal
 

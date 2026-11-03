@@ -133,7 +133,7 @@ Done / faithful:
   see `docs/sequencer_0x106256.md`.
 * Title builder `FUN_00108816`.
 * **`tools/verify_groundtruth.py`: song name *and* length match the original
-  for 10/10 seeds.** The name is a downstream checksum of the RNG stream, so
+  for 20/20 seeds.** The name is a downstream checksum of the RNG stream, so
   this is strong evidence the stream is byte-exact.
 
 Outstanding (this is the work list):
@@ -152,7 +152,7 @@ Outstanding (this is the work list):
    audio (`render_samples` already plays the real bank, so timbre is right).
 
 **Verification gate:** `python3 tools/verify_groundtruth.py` must print
-`10/10 seeds match`.  Add more seeds from `docs/groundtruth.md` (captured with
+`20/20 seeds match`.  Add more seeds from `docs/groundtruth.md` (captured with
 the vamos recipe) as you go.
 
 ---

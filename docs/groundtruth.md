@@ -36,6 +36,16 @@ log line is written, so the `LOG=` output is complete and usable.
 | `$0000ABCD` | Stupid and shitty                  | 04m 36s |
 | `$0000FFFF` | Sweet and dreaming                 | 03m 24s |
 | `$7FFFFFFF` | Another needful moon               | 04m 36s |
+| `$00000005` | Follow the stupid mouse            | 02m 36s |
+| `$00000007` | Another exotic lunatic             | 04m 00s |
+| `$00000042` | Yellow Tom in space                | 04m 36s |
+| `$00002718` | The creepy Tom and the erotic Joe  | 03m 36s |
+| `$00009999` | Follow the blue elephant           | 04m 00s |
+| `$0000BEEF` | Sandy, natural and idiotic         | 02m 36s |
+| `$0000C0FFEE` | Nasty turtle                     | 03m 36s |
+| `$0000DEAD` | The cute man in my house           | 03m 12s |
+| `$0000FACE` | The mystic Daniel                  | 02m 36s |
+| `$00123456` | Another funky gangster             | 03m 00s |
 
 (The `Nr` column is always `1`; a fresh `INIT` runs a single song before the
 play loop needs input.)
@@ -78,7 +88,7 @@ python3 tools/verify_groundtruth.py
 replays the sample pick + sequencer RNG stream + title for every seed in the
 table and checks both the **song name** and the **length** (the length is
 `num_patterns * 64` 16th-notes at the configured BPM = 160).  It currently
-reports `10/10 seeds match`.
+reports `20/20 seeds match`.
 
 To add a reference seed, capture its `LOG=` line with the recipe above and add
 it to the `GROUND_TRUTH` dict in `tools/verify_groundtruth.py` (and the table
@@ -89,6 +99,6 @@ here).  Watch the `Length` column: it is a useful independent check on
 
 * `LOG=` line obtainable (vamos block removed by the ExAll patch).
 * Sample-pick counts + sequencer RNG order + title builder are byte-exact
-  (`algomusic/song.py`), confirmed by name *and* length for 10/10 seeds.
+  (`algomusic/song.py`), confirmed by name *and* length for 20/20 seeds.
 * Note-level playback tables of `FUN_00106256` (periods/voices/amplitudes) are
   still approximated by the renderer.

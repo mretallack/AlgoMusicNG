@@ -113,7 +113,7 @@ Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
   falls into case 2) and the exact retry loops.
 
 The consequence: for the same seed the generated **song name** *and* **song
-length** now match the original — verified for 10 seeds in
+length** now match the original — verified for 20 seeds in
 `tools/verify_groundtruth.py`. (The name is a downstream checksum of the entire
 RNG stream, so matching it means the stream is byte-exact.)
 

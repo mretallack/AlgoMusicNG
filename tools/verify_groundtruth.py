@@ -33,6 +33,16 @@ GROUND_TRUTH = {
     0x0000ABCD: ("Stupid and shitty", 276),
     0x0000FFFF: ("Sweet and dreaming", 204),
     0x7FFFFFFF: ("Another needful moon", 276),
+    0x00000005: ("Follow the stupid mouse", 156),
+    0x00000007: ("Another exotic lunatic", 240),
+    0x00000042: ("Yellow Tom in space", 276),
+    0x0000C0FFEE & 0xFFFFFFFF: ("Nasty turtle", 216),
+    0x00123456: ("Another funky gangster", 180),
+    0x0000DEAD: ("The cute man in my house", 192),
+    0x0000BEEF: ("Sandy, natural and idiotic", 156),
+    0x00002718: ("The creepy Tom and the erotic Joe", 216),
+    0x0000FACE: ("The mystic Daniel", 156),
+    0x00009999: ("Follow the blue elephant", 240),
 }
 
 

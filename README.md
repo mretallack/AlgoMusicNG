@@ -82,15 +82,46 @@ make db           # rebuild algomusic/db.json from the image
 Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
 `lha`, and — for `make ghidra` — Ghidra 11+ and Java 17+.
 
-## Fidelity
+## Fidelity / roadmap to byte-exact output
 
-* **Exact:** the PRNG, all musical tables, the title vocabulary, note parsing.
-* **Reconstructed:** the per-pattern selection logic (`rand()%n` with
-  anti-repeat) and the arrangement walk — faithful to the decompiled control
-  flow but not guaranteed bit-identical.
-* **Approximated:** audio. The Amiga plays 8SVX samples through Paula; the
-  renderer here synthesises four voices (chords/bass/melody/drums) instead, so
-  it sounds like AlgoMusic but does not use the sample bank.
+**Exact (ported 1:1 from the binary):**
+* the PRNG (`0x10c844`/`0x10c87a`);
+* every musical table and the title vocabulary;
+* note/chord token parsing (`0x107340`);
+* the selector helpers: `0x10861c` (category selector incl. its "sticky"
+  repeat + reroll conditions), `0x108710` (70-slot permutation) and
+  `0x108794` (9-slot permutation);
+* the per-song call order of `0x106256` for structure / phrase / rhythm /
+  melody / arp / echo selection, using the original moduli
+  (`%17, %14, %24, %39, %8, %4, %70, %9`).
+
+**Still needed for *bit-identical* output:**
+1. the remaining un-decompiled helpers invoked by `0x106256`
+   (`0x10be8c`, `0x10bf50`, the per-voice setup around `0x113180`, the
+   `0x10ab38`/`0x10b0a2` speech path) which consume further RNG values and
+   therefore shift the sequence;
+2. the sample database (the `.readme`/file-comment parsing in
+   `0x109c72`/`0x1092ca`) — the number of samples per directory changes every
+   `rand()%n`, so the *same sample drawer* must be present (`full/AlgoMusic`);
+3. the player: Paula- period/volume/offset computation and mixing of the
+   actual 8SVX samples (`BASE`, `CLAP`, `HIHAT`, `SNARE`, breakbeat, chord and
+   speech samples), which is what makes the audio identical.
+
+**Verification** is the hard part: the original performs direct hardware access
+and needs `graphics.library` + `intuition.library`. It runs under `vamos`
+(`pip install 'amitools[vamos]'`) up to the point of opening `graphics.library`,
+which `vamos` does not implement — so no ground truth yet. Supplying a stub
+`graphics.library` (or a real FS-UAE/WinUAE setup with a Kickstart ROM) would
+let us diff the `LOG=` output line
+
+```
+Date  Time  Songname  Randominit  Nr  Length
+```
+
+against the Python generator and drive the port to byte-exactness.
+
+**Audio:** the current `render.py` synthesises the four voices. It will be
+replaced by a sample-player once (2)/(3) are ported.
 
 ## Legal
 

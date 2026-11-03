@@ -114,6 +114,94 @@ class Song:
         return self.num_patterns * 64
 
 
+class Selectors:
+    """Faithful port of the selector helpers from the 68000 binary.
+
+    * category selector  -- func 0x10861c  (DAT_0010e778/0x10e786 tables)
+    * permutation picker -- func 0x108710 (70 slots) and 0x108794 (9 slots)
+
+    The exact rand() call order is reproduced, including the "sticky"
+    behaviour where a category keeps returning its previous value until a
+    reroll condition fires.
+    """
+
+    NCAT = 7
+
+    def __init__(self, rng):
+        self.rng = rng
+        self.last = [0xFFFF] * self.NCAT      # DAT_0010e778 init (-1)
+        self.count = [9999] * self.NCAT       # DAT_0010e786 init
+        self.perm_slots = None                # DAT_0010ff48 (70)
+        self.perm_n = 0
+        self.perm_prev = -1                   # DAT_0010e976
+        self.perm9_slots = None               # DAT_0010ff8e (9)
+        self.perm9_n = 0
+        self.perm9_prev = -1                  # DAT_0010e97a
+
+    # func 0x1086dc
+    def reset_selectors(self):
+        self.last = [0xFFFF] * self.NCAT
+        self.count = [9999] * self.NCAT
+
+    # func 0x10861c
+    def sel(self, cat, n):
+        r = self.rng.rand()
+        if (((r & 3) == 1) and (self.count[cat] > 5)) or (self.last[cat] == 0xFFFF):
+            while True:
+                self.rng.rand()
+                v = self.rng.rand_mod(n)
+                if n == 1:
+                    break
+                if v != self.last[cat]:
+                    break
+            self.last[cat] = v
+            self.count[cat] = 0
+            return v
+        else:
+            self.count[cat] += 1
+            return self.last[cat]
+
+    # func 0x108710  (choose an unused index in 0..n-1, != previous)
+    def perm(self, n):
+        if self.perm_slots is None:
+            self.perm_slots = [0] * n
+        if self.perm_n == n:
+            self.perm_slots = [0] * n
+            self.perm_n = 0
+        while True:
+            while True:
+                self.rng.rand()
+                v = self.rng.rand_mod(n)
+                if self.perm_slots[v] == 0:
+                    break
+            if v != self.perm_prev:
+                break
+        self.perm_slots[v] = 1
+        self.perm_n += 1
+        self.perm_prev = v
+        return v
+
+    # func 0x108794  (choose an unused index in 0..8)
+    def perm9(self):
+        if self.perm9_slots is None:
+            self.perm9_slots = [0] * 9
+        if self.perm9_n == 9:
+            self.perm9_slots = [0] * 9
+            self.perm9_n = 0
+        while True:
+            while True:
+                self.rng.rand()
+                v = self.rng.rand_mod(9)
+                if self.perm9_slots[v] == 0:
+                    break
+            if v != self.perm9_prev:
+                break
+        self.perm9_slots[v] = 1
+        self.perm9_n += 1
+        self.perm9_prev = v
+        return v
+
+
 class Generator:
     def __init__(self, seed=None, db=None):
         self.db = db or load_db()
@@ -121,25 +209,11 @@ class Generator:
             seed = int(time.time()) & 0x7FFFFFFF
         self.seed = seed
         self.rng = Rng(seed)
-        self._last = {}
-
-    # --- random helpers mirroring func 0x10861c -----------------------
-    def pick(self, category, n, seq):
-        """Random index into seq (length n) with simple anti-repeat."""
-        if n <= 1:
-            return 0
-        prev = self._last.get(category, -1)
-        for _ in range(8):
-            i = self.rng.rand_mod(n)
-            if i != prev:
-                break
-        self._last[category] = i
-        return i
+        self.sel = Selectors(self.rng)
 
     def song_structure(self):
         """Pick one of the 9 arrangement strings (func 0x108794)."""
-        groups = len(self.db["song_structures"]) // 3
-        g = self.pick("struct", groups, range(groups))
+        g = self.sel.perm9()
         return self.db["song_structures"][g * 3:(g + 1) * 3]
 
     def title(self):
@@ -153,31 +227,45 @@ class Generator:
             words.append(pool[self.rng.rand_mod(len(pool))])
         return tmpl % tuple(words)
 
-    def generate(self, bpm=160, finetune=100):
+    def generate(self, bpm=160, finetune=100, speech=False):
         s = Song()
         s.seed = self.seed
         s.bpm = bpm
         s.finetune = finetune
         s.name = self.title()
 
-        struct = self.song_structure()
+        # --- func 0x106256 : per-song selection sequence -----------------
+        self.rng.rand()                            # leading rand() in 0x106256
+        self.sel.reset_selectors()                 # FUN_001086dc
+        struct = self.song_structure()             # FUN_00108794 -> 0..8
+        phrase_idx = self.sel.perm(                # FUN_00108710 -> 0..69
+            len(self.db["song_structs"]))
         primary = struct[0]
         s.num_patterns = max(1, len(primary.rstrip()) // 4)
 
+        # echo + rhythm-mix selectors (category 6 and 5)
+        echo = self.sel.sel(6, len(self.db["echo"]))
+        rmix = self.sel.sel(5, len(self.db["rhythm_mix"]))
+
         chords_bank = self.db["song_structs"]
-        drums_bank = self.db["drums_a"]
-        melody_bank = self.db["melody_a"]
+        drums_a = self.db["drums_a"]
+        drums_b = self.db["drums_b"]
+        melody_bank = self.db["melody_a"] if not speech else self.db["melody_b"]
         arp_bank = self.db["arps"]
 
-        for p in range(s.num_patterns):
-            patt = {"chord": None, "bass": None, "melody": None, "drums": None}
-            # selector character for this pattern block (mirrors structure use)
-            sel = primary[p * 4:p * 4 + 1]
-            base = ord(sel) - ord("1") if sel and sel.isdigit() else 0
-            patt["chord"] = chords_bank[self.pick("chord", len(chords_bank), chords_bank)]
-            patt["bass"] = chords_bank[self.pick("bass", len(chords_bank), chords_bank)]
-            patt["melody"] = melody_bank[self.pick("melody", len(melody_bank), melody_bank)]
-            patt["drums"] = drums_bank[(base + self.pick("drum", len(drums_bank), range(len(drums_bank)))) % len(drums_bank)]
-            patt["arp"] = arp_bank[self.pick("arp", len(arp_bank), range(len(arp_bank)))]
-            s.patterns.append(patt)
+        for _p in range(s.num_patterns):
+            drum_a = self.sel.sel(0, len(drums_a))     # FUN_0010861c(0,0x11)
+            drum_b = self.sel.sel(1, len(drums_b))     # FUN_0010861c(1,0xe)
+            mel = self.sel.sel(3, 0x18)                # FUN_0010861c(3,0x18)
+            arp = self.sel.sel(4, 0x27)                # FUN_0010861c(4,0x27)
+            s.patterns.append({
+                "chord": chords_bank[phrase_idx],
+                "bass": chords_bank[phrase_idx],
+                "melody": melody_bank[mel % len(melody_bank)],
+                "drums": drums_a[drum_a],
+                "drums_b": drums_b[drum_b],
+                "arp": arp_bank[arp],
+                "echo": self.db["echo"][echo],
+                "rmix": self.db["rhythm_mix"][rmix],
+            })
         return s

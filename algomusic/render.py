@@ -408,13 +408,27 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
         # lead
         if T["lead_voice"][i] != 0xFFFF:
             hit(i, lead_smp, T["lead_period"][i], gain * 0.36, step_n * 1.9)
-        # drums (one-shot); voice may be a pre-mix of up to two sources
+    # ---- drums: one-shot, one Paula voice each ---------------------------
+    # The player allocates a fixed voice per drum id, so a new hit *retriggers*
+    # (cuts) the previous one instead of piling on top -- and it plays the whole
+    # sample at its natural rate.  Accumulating overlapping one-shots (and
+    # cutting them short) made the drums muddy and far too loud.
+    drum_hits = {}
+    for i in range(nsteps):
         if T["drum_period"][i] != 0xFFFF:
-            vol = gain * 0.8 * (min(200, T["drum_vol"][i]) / 200.0)
-            for dsmp in drum_smps.get(T["drum_period"][i], ()):
-                if dsmp:
-                    smp, rate, _ls, _ll = dsmp
-                    _play(buf, smp, rate / SR, int(i * step_n), len(smp) + 1, vol)
+            drum_hits.setdefault(T["drum_period"][i], []).append(i)
+    for v, steps in drum_hits.items():
+        srcs = [d for d in drum_smps.get(v, ()) if d]
+        for k, stp in enumerate(steps):
+            start = int(stp * step_n)
+            if k + 1 < len(steps):
+                dur = int(steps[k + 1] * step_n) - start
+            else:
+                dur = None                       # play the sample out
+            vol = gain * 0.30 * (min(200, T["drum_vol"][stp]) / 200.0)
+            for smp, rate, _ls, _ll in srcs:
+                _play(buf, smp, rate / SR, start,
+                      dur if dur is not None else len(buf), vol)
 
     peak = max(1e-9, max(abs(x) for x in buf))
     scale = 0.95 / peak

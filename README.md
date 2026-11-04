@@ -1,6 +1,6 @@
 # AlgoMusic — a Linux/Python re-implementation
 
-**AlgoMusic** (Thomas Schürger, 1995–1998) was an Amiga "algorithmic Techno/House
+**AlgoMusic** (Thomas Schürger, 1995–1997) was an Amiga "algorithmic Techno/House
 song player": it composes and plays a brand new song, forever, out of a set of
 built-in musical patterns. It was released as *giftware*, binary only —
 nobody has published a Linux port or a source reconstruction.
@@ -12,12 +12,17 @@ the generator in Python.
 orig/                     the original Aminet archive (update + full) and unpacked files
 full/                     full 1.3 MB archive (includes the sample bank)
 work/                     relocated flat 68k image, Ghidra project, decompiled C
-tools/                    extraction + Ghidra helper scripts
+tools/                    extraction / Ghidra helpers + verify, vamos-dump, compare
+docs/                     RE notes (sequencer, ground truth, Paula capture)
+AGENTS.md                 working guide for the codebase
 algomusic/                the Python re-implementation
   db.json                 musical database extracted from the binary
   rng.py                  exact PRNG
-  song.py                 generator (RNG + database + selection logic)
-  render.py               WAV renderer (synthesised voices)
+  song.py                 generator (RNG stream + step-loop playback tables)
+  sequencer.py            recovered sequencer primitives (note parse/period)
+  samples.py              loader for the real 8SVX sample bank
+  amigapattern.py         AmigaDOS pattern matching for the drawer scan
+  render.py               WAV renderers (real sample bank / oscillator synth)
   __main__.py             CLI
 ```
 
@@ -94,6 +99,7 @@ make download     # fetch the Aminet archives
 make extract      # relocate the 68000 binary -> flat image + reloc list
 make ghidra       # (optional) headless Ghidra decompile -> work/decompiled_all.c
 make db           # rebuild algomusic/db.json from the image
+make verify       # ground-truth (name+length) and table self-consistency checks
 ```
 
 Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
@@ -121,8 +127,9 @@ Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
   falls into case 2) and the exact retry loops;
 * the **note-level output of `0x106256`** — the per-step chord/bass/lead/drum
   period, voice, amplitude and trigger tables (`Song.build_tables()`), using the
-  `0x10e6d0` char→semitone table and signed-16-bit note arithmetic.  Consumes no
-  RNG in a default run, so it does not disturb the stream.
+  `0x10e6d0` char→semitone table (including the per-step minor-chord patch of
+  its `'2'`/`'5'` entries) and signed-16-bit note arithmetic.  Consumes no RNG
+  in a default run, so it does not disturb the stream.
 
 The consequence: for the same seed the generated **song name** *and* **song
 length** now match the original — verified for 20 seeds in
@@ -140,9 +147,10 @@ caller reads. So they shift *nothing*.
    retry loops, ring `0x111170`, interval tables `0x10e730/40/5c`) and the
    `0x10e92e`/`0x10e93e` alternate lead/phasing modes;
 2. the speech path `0x10ab38`/`0x10b0a2` (only with the `SPEECH` switch);
-3. Paula player `0x1073e6`: 16-voice allocation, the `0x1285d8` per-voice ring
-   and the `0x12865c` voice→sample table — needed for the exact *drum
-   instrument* map (period/onset timing is already exact from the tables);
+3. Paula player `0x1073e6`: 16-voice allocation and the `0x1285d8` per-voice
+   ring — the per-step period/onset tables *and* the voice→sample instrument
+   map are already exact (the latter recovered from the sample loader
+   `0x1095ea`/`0x10996c`);
 4. sample-DB comment parsing (`0x109c72`…) for per-sample VOLUME/FINETUNE.
 
 **Verification / ground truth.** The original now runs under `vamos`
@@ -173,6 +181,20 @@ Date      Time   Songname                           Randominit  Nr  Length
 A table of seed -> song-name references lives in `docs/groundtruth.md`. The
 emulator still faults in the Paula/audio layer *after* the log line is written,
 which does not affect the reference.
+
+Beyond the name/length, the original writes its per-step playback tables into
+emulated RAM *before* it reaches that fault, so `tools/dump_vamos_tables.py`
+can snapshot them and `tools/compare_tables.py` can diff them against our port:
+
+```sh
+python3 tools/dump_vamos_tables.py '$4002' /tmp/orig_4002.bin
+python3 tools/compare_tables.py   '$4002' /tmp/orig_4002.bin
+```
+
+**All eleven tables (chord/bass/drum/lead period+voice+amp) are byte-exact**,
+confirmed on four seeds (`$4002`, `$1`, `$1e240`, `$c0ffee`). The only historic
+residual — 72 `lead_period` steps on minor chords — was the original's per-step
+runtime patch of `char_table['2']`/`['5']` (see `docs/sequencer_0x106256.md`).
 
 ## Legal
 

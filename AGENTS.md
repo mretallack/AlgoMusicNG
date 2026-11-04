@@ -161,6 +161,10 @@ Outstanding (this is the work list):
   the original's `LOG=` line); add more seeds from `docs/groundtruth.md`.
 * `python3 tools/verify_tables.py` → `10/10 seeds OK` (self-consistency of
   `Song.build_tables`: lengths, determinism, period/voice ranges).
+* (manual, needs the running original) `tools/dump_vamos_tables.py` +
+  `tools/compare_tables.py` diff our tables against the original's captured
+  under vamos: **everything is byte-exact except 72/1664 `lead_period` steps**
+  (minor-chord melody notes) — see docs/sequencer_0x106256.md.
 
 ---
 

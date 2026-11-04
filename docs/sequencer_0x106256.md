@@ -288,3 +288,32 @@ guesswork left after this:
    confirms the sample-pick counts, the selector logic and the RNG site order.
 3. That logic was folded into `algomusic/song.py`; the length was then also
    confirmed (`num_patterns*64` 16th-notes at the BPM).
+
+## Ground-truth validation (original's tables captured under vamos)
+
+The original writes its per-step tables into **emulated RAM** *before* it faults
+in the audio layer, so vamos can snapshot them (`tools/dump_vamos_tables.py`;
+the image loads at base `0x21ac`, so a Ghidra address `G` is at
+`G - 0x100000 + 0x21ac`, plus a 16-byte data-hunk quirk).  Diff our port with
+`tools/compare_tables.py '$4002' /tmp/orig_4002.bin`.
+
+Result for seed `$4002` (and the same everywhere):
+
+| table | result |
+|-------|--------|
+| chord period/voice | **exact** |
+| bass period/voice/amp | **exact** |
+| drum period/volume/offset | **exact** |
+| lead **voice**/amp | **exact** |
+| lead period | 1592/1664 exact, **72 differ** |
+
+### Known residual: 72 lead-period steps
+Every mismatch is a melody note whose chord is **minor** (lower-case token,
+e.g. `a-1`/`a61`): the original plays it a semitone *lower* than we do (chord
+tone `'2'` = **minor** third `3`, not the `4` stored in the `0x10e6d0` table,
+which is the *major* third).  The disassembly of the melody lookup
+(`0x1070d2`) is unambiguous — `local_92 = local_5c + *(short*)(0x10e6d0 +
+(local_88 + char)*2)` — and the chord is provably at `local_5c` (its period
+matches).  So there must be a **second, minor interval table** (or a case-
+dependent base) reached by a path we have not yet located.  This is the one
+remaining note-level discrepancy; `'1'`/`'3'`/`'4'` are identical in both.

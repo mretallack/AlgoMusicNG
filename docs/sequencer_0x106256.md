@@ -223,7 +223,9 @@ Recovered specifics:
   `0,4,7,12,16,19,24` (root, 3rd, 5th, 8ve, 10th, 12th, 15th).  `'-'` is a rest
   and is compared *before* the table lookup (so it is never looked up).  Note
   this table physically abuts the period/small/major/minor tables — it is fine,
-  the used indices are distinct.
+  the used indices are distinct.  Entries `'2'` and `'5'` are **patched every
+  step** from the chord token's case (minor → 3/15, major → 4/16); see the
+  "Resolved" section below.
 * **Note arguments are signed 16-bit.** `0x1072d2` is fed `(short)(...)` values;
   the bass is `chord_semitone + ct[char] - 12` and the lead is
   `chord_semitone + ct[char] + quality(-1/0/+1)`.  Feeding the un-sign-extended
@@ -305,15 +307,31 @@ Result for seed `$4002` (and the same everywhere):
 | bass period/voice/amp | **exact** |
 | drum period/volume/offset | **exact** |
 | lead **voice**/amp | **exact** |
-| lead period | 1592/1664 exact, **72 differ** |
+| lead period | **exact** |
 
-### Known residual: 72 lead-period steps
-Every mismatch is a melody note whose chord is **minor** (lower-case token,
-e.g. `a-1`/`a61`): the original plays it a semitone *lower* than we do (chord
-tone `'2'` = **minor** third `3`, not the `4` stored in the `0x10e6d0` table,
-which is the *major* third).  The disassembly of the melody lookup
-(`0x1070d2`) is unambiguous — `local_92 = local_5c + *(short*)(0x10e6d0 +
-(local_88 + char)*2)` — and the chord is provably at `local_5c` (its period
-matches).  So there must be a **second, minor interval table** (or a case-
-dependent base) reached by a path we have not yet located.  This is the one
-remaining note-level discrepancy; `'1'`/`'3'`/`'4'` are identical in both.
+**All tables are now byte-exact** for every seed tested (`$4002`, `$1`,
+`$1e240`, `$c0ffee`).
+
+### Resolved: the 72 "minor" lead-period steps — a runtime table patch
+
+The melody lookup itself (`0x1070d2`) is a single table, `0x10e6d0`:
+`local_92 = local_5c + *(short*)(0x10e6d0 + (local_88 + char)*2)`.  But the
+step loop *rewrites* two entries of that shared char table **every step**, at
+`0x1067bc`..`0x1067ec`:
+
+```
+btst.b #0, (a4+0x5d)[local_7c]      ; bit0 set = upper-case = major
+bne major
+minor:  move.w #3,  0x10e734        ; char_table['2'] (=0x10e6d0+0x64) = 3
+        move.w #0xf,0x10e73a        ; char_table['5'] (=0x10e6d0+0x6a) = 0xf
+major:  move.w #4,  0x10e734        ; char_table['2'] = 4   (the default)
+        move.w #0x10,0x10e73a        ; char_table['5'] = 0x10 (the default)
+```
+
+So for a **minor** (lower-case) chord, chord tones `'2'` and `'5'` are a
+semitone lower (3/15) than the stored defaults (4/16).  The patch is applied
+*after* the chord token is read and *before* the bass/melody/arp writes, so it
+also affects the bass and arp lookups whenever their char resolves to index
+`0x32`/`0x35` (bass digit `2`, or a melody/arp char that lands there via
+`local_88`).  `algomusic/song.py` models this with a `ct_at(idx, is_minor)`
+lookup helper rather than mutating the shared db table.

@@ -335,6 +335,21 @@ class Generator:
             "drum_off": [0] * total,
         }
 
+        # `0x1067ce`..`0x1067ec`: every step the original *patches* two entries
+        # of the shared char table `0x10e6d0` at runtime, based on the chord
+        # token's case (A4+0x5d bit0).  Minor (lowercase) chords set
+        # char_table['2']=3 and char_table['5']=15; major (uppercase) restore
+        # the defaults 4 / 16.  Every table lookup that follows in the step
+        # (bass, melody, arp) sees the patched values, so we model it as a
+        # lookup helper rather than mutating the shared db table.
+        def ct_at(idx, is_minor):
+            v = ct[idx & 0xFF]
+            if idx == 0x32:            # '2'
+                v = 3 if is_minor else 4
+            elif idx == 0x35:          # '5'
+                v = 15 if is_minor else 16
+            return v
+
         step_no = 0
         local_40 = 3                      # phrase token cursor
         transpose = s.transpose
@@ -388,6 +403,8 @@ class Generator:
                     i_bass = 0
 
                 f = 1 if local_7c.isupper() else 0     # char table bit0
+                # A4+0x5d bit0 clear -> minor -> char_table['2']/['5'] = 3/15
+                is_minor = not (isinstance(local_7c, str) and local_7c.isupper())
 
                 # ---- chord: comping pattern picks a chord tone -------
                 b = comp[i_comp]
@@ -408,7 +425,7 @@ class Generator:
                 if cb == "-":
                     T["bass_voice"][step_no] = 0xFFFF
                 else:
-                    sem = ct[ord(cb)]
+                    sem = ct_at(ord(cb), is_minor)
                     T["bass_period"][step_no] = note_to_period(
                         _s16(sem + local_5c - 0xC))
                     T["bass_voice"][step_no] = 6
@@ -438,7 +455,7 @@ class Generator:
                     if mel[i_mel] == "-":
                         T["lead_voice"][step_no] = 0xFFFF
                     else:
-                        sem = ct[local_88 + ord(mel[i_mel])]
+                        sem = ct_at(local_88 + ord(mel[i_mel]), is_minor)
                         T["lead_period"][step_no] = note_to_period(
                             _s16(sem + local_5c))
                         T["lead_voice"][step_no] = 7
@@ -447,7 +464,7 @@ class Generator:
                     if arp[i_arp] == "-":
                         T["lead_voice"][step_no] = 0xFFFF
                     else:
-                        sem = ct[ord(arp[i_arp])]
+                        sem = ct_at(ord(arp[i_arp]), is_minor)
                         T["lead_period"][step_no] = note_to_period(
                             _s16(sem + local_5c))
                         T["lead_voice"][step_no] = 8

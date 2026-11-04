@@ -6,9 +6,10 @@ Pair with tools/dump_vamos_tables.py:
     python3 tools/dump_vamos_tables.py '$4002' /tmp/orig_4002.bin
     python3 tools/compare_tables.py '$4002' /tmp/orig_4002.bin
 
-Status (seed $4002): chord/bass/drum period+voice+amp and lead voice/amp match
-byte-for-byte; ~4% of `lead_period` steps differ by a semitone on minor-chord
-melody notes -- see docs/sequencer_0x106256.md ("known residual").
+Status: all tables (chord/bass/drum/lead period+voice+amp) match byte-for-byte
+on every seed tested -- including `lead_period`, once the original's per-step
+runtime patch of `char_table['2']`/`['5']` for minor chords was modelled (see
+docs/sequencer_0x106256.md, "Resolved").
 """
 import os
 import struct

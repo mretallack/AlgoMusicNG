@@ -156,9 +156,11 @@ Outstanding (this is the work list):
    abandoned — vamos does not emulate the custom chips and the player is
    interrupt-driven.  See `docs/paula_capture.md`.
 
-**Verification gate:** `python3 tools/verify_groundtruth.py` must print
-`20/20 seeds match`.  Add more seeds from `docs/groundtruth.md` (captured with
-the vamos recipe) as you go.
+**Verification gate:** `make verify` runs both checks and must pass:
+* `python3 tools/verify_groundtruth.py` → `20/20 seeds match` (name + length vs
+  the original's `LOG=` line); add more seeds from `docs/groundtruth.md`.
+* `python3 tools/verify_tables.py` → `10/10 seeds OK` (self-consistency of
+  `Song.build_tables`: lengths, determinism, period/voice ranges).
 
 ---
 

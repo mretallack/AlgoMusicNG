@@ -4,7 +4,7 @@ GHIDRA ?= /home/mark/buildhome/ghidra/ghidra_12.0.4_PUBLIC
 HUNKTOOL ?= $(HOME)/.local/bin/hunktool
 BIN := orig/AlgoMusic/AlgoMusic.000
 
-.PHONY: all download extract db ghidra run clean
+.PHONY: all download extract db ghidra run verify clean
 
 all: download extract db
 
@@ -32,6 +32,10 @@ ghidra:
 
 run:
 	python3 -m algomusic -s '$$4002' -o algomusic.wav
+
+verify:
+	python3 tools/verify_groundtruth.py
+	python3 tools/verify_tables.py
 
 clean:
 	rm -rf work

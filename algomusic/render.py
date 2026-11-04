@@ -312,14 +312,22 @@ def render(song, path, drum_map=None, gain=0.28):
 # --------------------------------------------------------------------------
 PAL_CLOCK = 3546895          # Amiga PAL Paula clock (Hz)
 
-# chord voice id -> 8SVX chord sample family (see docs/sequencer_0x106256.md)
-_CHORD_VOICE = {0: "C-Maj", 1: "C-Min", 2: "C-Maj6", 3: "C-Min6",
-                4: "C-Maj4", 5: "C-Min4"}
-# drum voice id -> bank drum family.  The original maps voice ids to sample
-# slots through a runtime table we have not recovered; this is a best-effort
-# guess and does not affect pitch/timing.
-_DRUM_VOICE = {0x9: "kick", 0xA: "kick", 0xB: "clap", 0xC: "hat",
-               0xD: "snare", 0xE: "hat", 0xF: "snare"}
+# Chord voice id -> name suffix.  FUN_001095ea loads the six chord slots from
+# the *picked* Chords drawer entry (always a "...-Maj" file) by name surgery:
+# it appends "6"/"4" and replaces the quality with "Min" (see FUN_0010c354 and
+# the strings at 0x104a44="6" / 0x104a46="Min").  So voice 0..5 are
+# prefix-Maj / -Min / -Maj6 / -Min6 / -Maj4 / -Min4.
+_CHORD_SUFFIX = ["-Maj", "-Min", "-Maj6", "-Min6", "-Maj4", "-Min4"]
+
+# Drum voice id -> list of picked Rhythm sources, from FUN_0010996c:
+#   voice 9   = Base(4)          voice 0xb = Clap(5)
+#   voice 0xa = Hihat(6)         voice 0xc = Base+Clap
+#   voice 0xf = Base+Hihat       voice 0xd = Clap+Hihat
+#   voice 0xe = Snare(7)         voice 0x10 = BreakBeat(8)
+# (the original *pre-mixes* the two sources into one chip buffer; we just
+# trigger both at the same step, which is audibly and rhythmically identical.)
+_DRUM_CAT = {0x9: (4,), 0xA: (6,), 0xB: (5,), 0xC: (4, 5),
+             0xD: (5, 6), 0xE: (7,), 0xF: (4, 6), 0x10: (8,)}
 
 
 def _period_ratio(period, rate):
@@ -357,27 +365,47 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
         _play(buf, smp, r, int(i * step_n), int(dur), vol, loop=gloop,
               loop_start=ls, loop_len=ll)
 
-    mel = bank.melody
+    def _smp(sub, name):
+        return bank._get("%s/%s" % (sub, name)) if name else None
+
+    # resolve instruments from the *picked* sample-drawer entries, exactly as
+    # FUN_001095ea does (`song.picks` = {cat: (index, filename)}).
+    picks = getattr(song, "picks", {}) or {}
+
+    def pick_name(cat):
+        v = picks.get(cat)
+        return v[1] if v else None
+
+    chord_prefix = (pick_name(3) or "C-Maj")
+    chord_prefix = chord_prefix[:-4] if chord_prefix.endswith("-Maj") else "C"
+    chord_smps = [_smp("Chords", chord_prefix + s) for s in _CHORD_SUFFIX]
+    if not chord_smps[0]:
+        chord_smps = [bank.chords.get("C-Maj")] * 6
+
+    bass_smp = _smp("Bass", pick_name(0)) or bank.bass
+    lead_smp = _smp("Melody", pick_name(1)) or bank.melody
+    drum_smps = {v: [_smp("Rhythm", pick_name(c)) for c in cats]
+                 for v, cats in _DRUM_CAT.items()}
+
     for i in range(nsteps):
         # chord
         if T["chord_voice"][i] != 0xFFFF:
-            fam = _CHORD_VOICE.get(T["chord_voice"][i], "C-Maj")
-            hit(i, bank.chords.get(fam) or bank.chords.get("C-Maj"),
+            v = T["chord_voice"][i]
+            hit(i, chord_smps[v] if 0 <= v < 6 else chord_smps[0],
                 T["chord_period"][i], gain * 0.5, step_n * 1.05)
         # bass
         if T["bass_voice"][i] != 0xFFFF:
-            hit(i, bank.bass, T["bass_period"][i], gain * 0.45, step_n * 1.05)
+            hit(i, bass_smp, T["bass_period"][i], gain * 0.45, step_n * 1.05)
         # lead
         if T["lead_voice"][i] != 0xFFFF:
-            hit(i, mel, T["lead_period"][i], gain * 0.36, step_n * 1.9)
-        # drums (one-shot)
+            hit(i, lead_smp, T["lead_period"][i], gain * 0.36, step_n * 1.9)
+        # drums (one-shot); voice may be a pre-mix of up to two sources
         if T["drum_period"][i] != 0xFFFF:
-            v = T["drum_period"][i]
-            dsmp = bank.drums.get(_DRUM_VOICE.get(v, "hat"))
-            if dsmp:
-                smp, rate, _ls, _ll = dsmp
-                _play(buf, smp, rate / SR, int(i * step_n), len(smp) + 1,
-                      gain * 0.8 * (min(200, T["drum_vol"][i]) / 200.0))
+            vol = gain * 0.8 * (min(200, T["drum_vol"][i]) / 200.0)
+            for dsmp in drum_smps.get(T["drum_period"][i], ()):
+                if dsmp:
+                    smp, rate, _ls, _ll = dsmp
+                    _play(buf, smp, rate / SR, int(i * step_n), len(smp) + 1, vol)
 
     peak = max(1e-9, max(abs(x) for x in buf))
     scale = 0.95 / peak

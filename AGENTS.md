@@ -141,8 +141,9 @@ Outstanding (this is the work list):
    loop is ported in `Song.build_tables()` (chord/bass/lead/drum period, voice,
    amp, trigger tables) and rendered by `render_tables()` (`freq = 3546895 /
    period`).  The chord/bass/lead pitch and all onsets/rests are exact; the
-   voice→sample instrument choices (esp. the drum voice-id map) are still
-   best-effort.  See `docs/sequencer_0x106256.md`.
+   instrument choice is now exact too (see the recovered
+   `FUN_001095ea`/`FUN_0010996c` voice→sample map in
+   `docs/sequencer_0x106256.md`).  
 2. **`0x10e946 != 0` melody-roll variant** and `0x10e92e`/`0x10e93e` (arp vs
    melody lead; bass/arp phasing) — not exercised by a plain `INIT $seed` run.
 3. Sample-DB parsing `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`

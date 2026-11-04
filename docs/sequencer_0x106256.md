@@ -239,9 +239,11 @@ Recovered specifics:
 
 `algomusic/render.py::render_tables()` now plays these tables directly:
 `freq = PAL_CLOCK / period`, resampled against the real 8SVX sample rate.  The
-chord/bass/lead pitch and every onset/rest are therefore exact; only the
-drum *voice-id → sample* mapping (and the voice→sample instrument choice) is a
-best-effort guess.
+chord/bass/lead pitch and every onset/rest are therefore exact, and
+instruments are chosen from the picked sample-drawer entries exactly as
+`FUN_001095ea` does (see the instrument map below).  What is *not* yet modelled
+is per-sample VOLUME/FINETUNE from the 8SVX comments and the player's
+16-voice allocation/ring.
 
 ## Still outstanding
 
@@ -253,7 +255,29 @@ best-effort guess.
   modes; `build_tables` implements the melody branch and the phasing branch is
   not reproduced.
 * The player `0x1073e6`: 16-voice allocation, the per-voice ring at `0x1285d8`
-  and `0x12865c` voice→sample table (needed for an exact drum instrument map).
+  and `0x12865c` voice→sample table, plus per-sample VOLUME/FINETUNE from the
+  8SVX comments (`0x109c72`…).  Per-voice **volume** defaults to `0x12860a=0x40`
+  (set in `FUN_001095ea`).
+
+## Instrument map (recovered from `FUN_001095ea` / `FUN_0010996c`)
+
+The sample loader tells us exactly which 8SVX file each voice id plays — no
+guesswork left after this:
+
+* **Chords.** Six slots are built from the *picked* Chords drawer entry (the
+  drawer pattern `#?Maj` guarantees a `...-Maj` file).  `FUN_0010c354` appends
+  `"6"`/`"4"` and substitutes `"Min"` (strings `0x104a44`/`0x104a46`), so
+  voice `0..5` = `prefix-Maj / -Min / -Maj6 / -Min6 / -Maj4 / -Min4`.
+* **Bass** = picked Bass entry (`picks[0]`); **lead** = picked Melody entry
+  (`picks[1]`).  Playback rate is `(3546895/period) / sample_rate` — this is
+  exactly what the original writes to `AUDxPER` for that sample, so lead/bass/
+  chord **pitch is now sample-exact**.
+* **Drums** (`FUN_0010996c` builds chip buffers `0x128320[voice]`):
+  `9`=Base, `0xa`=Hihat, `0xb`=Clap, `0xc`=Base+Clap, `0xd`=Clap+Hihat,
+  `0xe`=Snare, `0xf`=Base+Hihat, `0x10`=BreakBeat, where Base/Clap/Hihat/Snare/
+  BreakBeat are the *picked* Rhythm entries (`picks[4..8]`).  The two-source
+  voices are **pre-mixed** into one buffer; `render_tables` triggers both at the
+  same step (equivalent).  Which drum char → which voice is in `build_tables`.
 
 ## How the port was verified
 

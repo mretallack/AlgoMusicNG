@@ -80,8 +80,12 @@ per-step period tables from the sequencer: `freq = 3546895 / period`, resampled
 against each sample's own rate; drums play one-shot. Use `--approx` for the old
 arrangement-based renderer and `--synth` for the plain oscillator fallback.
 
-Remaining inexactness is instrument *choice* (chord-family and drum voice-id →
-sample mapping); pitch and all onsets/rests come straight from the binary.
+Instruments are resolved from the *picked* sample-drawer entries exactly as
+`FUN_001095ea`/`FUN_0010996c` do (six chord slots built by name surgery, drums
+from the picked Base/Clap/Hihat/Snare/BreakBeat, two-source voices triggered
+together).  Pitch, all onsets/rests and the instrument choice therefore come
+straight from the binary; only per-sample VOLUME/FINETUNE comments and the
+player's 16-voice ring are not modelled yet.
 
 ## Reproducing the analysis
 

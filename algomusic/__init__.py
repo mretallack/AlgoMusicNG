@@ -12,10 +12,10 @@ Public API:
 """
 from .rng import Rng
 from .song import Generator, Song, load_db
-from .render import render, render_samples
+from .render import render, render_samples, render_tables
 from .samples import SampleBank, scan_drawers
 from . import sequencer
 
 __all__ = ["Rng", "Generator", "Song", "load_db", "render", "render_samples",
            "SampleBank", "scan_drawers", "sequencer"]
-__version__ = "0.3.0"
+__version__ = "0.4.0"

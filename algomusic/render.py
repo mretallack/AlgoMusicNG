@@ -305,3 +305,90 @@ def render(song, path, drum_map=None, gain=0.28):
         w.setframerate(SR)
         w.writeframes(bytes(data))
     return path
+
+
+# --------------------------------------------------------------------------
+# table-driven renderer: plays the exact per-step tables from the sequencer
+# --------------------------------------------------------------------------
+PAL_CLOCK = 3546895          # Amiga PAL Paula clock (Hz)
+
+# chord voice id -> 8SVX chord sample family (see docs/sequencer_0x106256.md)
+_CHORD_VOICE = {0: "C-Maj", 1: "C-Min", 2: "C-Maj6", 3: "C-Min6",
+                4: "C-Maj4", 5: "C-Min4"}
+# drum voice id -> bank drum family.  The original maps voice ids to sample
+# slots through a runtime table we have not recovered; this is a best-effort
+# guess and does not affect pitch/timing.
+_DRUM_VOICE = {0x9: "kick", 0xA: "kick", 0xB: "clap", 0xC: "hat",
+               0xD: "snare", 0xE: "hat", 0xF: "snare"}
+
+
+def _period_ratio(period, rate):
+    if period <= 0 or rate <= 0:
+        return 0.0
+    f = PAL_CLOCK / period
+    return min(8.0, max(0.05, f / rate))
+
+
+def render_tables(song, path, bank=None, gain=0.6, loops=1):
+    """Render using the exact note-level tables (`song.tables`).
+
+    Chord, bass and lead (melody/arp) now use the *exact* Paula period the
+    original computed (`3546895 / period`), and every onset/rest comes from the
+    step tables rather than a re-derivation of the arrangement.  Drums trigger
+    on the table's non-rest steps; the voice-id -> sample mapping is a guess.
+    """
+    if not getattr(song, "tables", None):
+        return render_samples(song, path, bank=bank, gain=gain, loops=loops)
+    bank = bank or SampleBank()
+    T = song.tables
+    step = 60.0 / song.bpm / 4.0
+    step_n = step * SR
+    nsteps = song.total_steps
+    total = int(nsteps * step * SR) + SR // 2
+    buf = [0.0] * total
+
+    def hit(i, smp_info, period, vol, dur, gloop=True):
+        if not smp_info:
+            return
+        smp, rate, ls, ll = smp_info
+        r = _period_ratio(period, rate)
+        if r == 0.0:
+            return
+        _play(buf, smp, r, int(i * step_n), int(dur), vol, loop=gloop,
+              loop_start=ls, loop_len=ll)
+
+    mel = bank.melody
+    for i in range(nsteps):
+        # chord
+        if T["chord_voice"][i] != 0xFFFF:
+            fam = _CHORD_VOICE.get(T["chord_voice"][i], "C-Maj")
+            hit(i, bank.chords.get(fam) or bank.chords.get("C-Maj"),
+                T["chord_period"][i], gain * 0.5, step_n * 1.05)
+        # bass
+        if T["bass_voice"][i] != 0xFFFF:
+            hit(i, bank.bass, T["bass_period"][i], gain * 0.45, step_n * 1.05)
+        # lead
+        if T["lead_voice"][i] != 0xFFFF:
+            hit(i, mel, T["lead_period"][i], gain * 0.36, step_n * 1.9)
+        # drums (one-shot)
+        if T["drum_period"][i] != 0xFFFF:
+            v = T["drum_period"][i]
+            dsmp = bank.drums.get(_DRUM_VOICE.get(v, "hat"))
+            if dsmp:
+                smp, rate, _ls, _ll = dsmp
+                _play(buf, smp, rate / SR, int(i * step_n), len(smp) + 1,
+                      gain * 0.8 * (min(200, T["drum_vol"][i]) / 200.0))
+
+    peak = max(1e-9, max(abs(x) for x in buf))
+    scale = 0.95 / peak
+    data = bytearray()
+    for x in buf:
+        v = math.tanh(x * scale * 1.15)
+        s = int(max(-1.0, min(1.0, v)) * 32767)
+        data += struct.pack("<hh", s, s)
+    with wave.open(path, "wb") as w:
+        w.setnchannels(2)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(bytes(data))
+    return path

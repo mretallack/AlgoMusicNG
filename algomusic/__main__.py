@@ -7,7 +7,7 @@ import argparse
 import sys
 
 from .song import Generator
-from .render import render, render_samples
+from .render import render, render_samples, render_tables
 
 
 def main(argv=None):
@@ -20,6 +20,8 @@ def main(argv=None):
     p.add_argument("--info", action="store_true", help="print database statistics")
     p.add_argument("--synth", action="store_true",
                    help="use the oscillator synth instead of the real 8SVX sample bank")
+    p.add_argument("--approx", action="store_true",
+                   help="use the old arrangement-based renderer instead of the exact step tables")
     args = p.parse_args(argv)
 
     if args.info:
@@ -45,8 +47,10 @@ def main(argv=None):
         out = args.out if args.count == 1 else args.out.replace(".wav", "_%d.wav" % (i + 1))
         if args.synth:
             render(song, out)
-        else:
+        elif args.approx:
             render_samples(song, out)
+        else:
+            render_tables(song, out)
         print('Playing song "%s" ($%08x) -> %s' % (song.name, song.seed, out))
     return 0
 

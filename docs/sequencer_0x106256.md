@@ -154,9 +154,9 @@ for each of num_patterns:
 ```
 
 Verified by `tools/verify_groundtruth.py`: the resulting *title* (rolled last by
-`0x108816`) and the *song length* match the original for 10/10 seeds.
+`0x108816`) and the *song length* match the original for 20/20 seeds.
 
-## The step loop (partial decode — groundwork for note-level output)
+## The step loop (decode)
 
 Recovered while reading the loop; implemented where marked in
 `algomusic/sequencer.py`.
@@ -204,21 +204,63 @@ ring   : 0x111170 melody ring (up to 0x29 entries)
 Each entry is 1 word per step (`DAT_00128198` steps total).  `0xffff` means
 "rest / no note".
 
-## Still outstanding (for sample-level audio, not for the RNG stream)
+## The step loop is ported (`Song.build_tables`, in `algomusic/song.py`)
 
-The step loop also writes the per-step playback tables (chord/bass/arp/melody
-periods, voices, amplitudes, drum triggers) at `0x119198`, `0x11a998`,
-`0x11d998`, `0x116198`, `0x111170` …  Those are **not yet ported**; the
-renderer approximates them.  Likewise the `0x10e946 != 0` melody-roll variant,
-the speech path (`0x10ab38`/`0x10b0a2`, `SPEECH` only) and `0x10e92e`/`0x10e93e`
-arrangement-letter handling are not reproduced.
+`Song.build_tables()` is a literal port of the step loop above and fills the
+per-step playback tables.  It consumes **no RNG** in a default run (every
+conditional roll sits behind `0x10e946 != 0`), so it is safe to run after
+`generate()`.
+
+Recovered specifics:
+
+* **Voices are small ids**, not separate tables: chord `0/1` = maj/min (from the
+  token's upper/lower case), `2/3` = maj6/min6, `4/5` = maj4/min4; bass `6`;
+  melody `7`; arp `8`; drums `9..15`.  The player routes each step to one of 16
+  hardware voices using the value stored in the parallel *voice* table; there is
+  one note table per channel, not one per voice.
+* **Char→semitone table at `0x10e6d0`** (256 shorts; extracted verbatim into
+  `db.json` as `char_table`).  Pattern digits `'1'..'7'` are **chord tones**:
+  `0,4,7,12,16,19,24` (root, 3rd, 5th, 8ve, 10th, 12th, 15th).  `'-'` is a rest
+  and is compared *before* the table lookup (so it is never looked up).  Note
+  this table physically abuts the period/small/major/minor tables — it is fine,
+  the used indices are distinct.
+* **Note arguments are signed 16-bit.** `0x1072d2` is fed `(short)(...)` values;
+  the bass is `chord_semitone + ct[char] - 12` and the lead is
+  `chord_semitone + ct[char] + quality(-1/0/+1)`.  Feeding the un-sign-extended
+  value makes `0x1072d2`'s "double until >= 0x7f" loop spin forever when the
+  shifted period underflows to 0.
+* **Comping/bass/lead cursors** (`i_comp/i_bass/i_mel/i_arp`) increment every
+  step and reset when `step & (len-1) == 0` — the masks are `strlen(pattern)-1`.
+* **Drum row** = `drum_patterns[drum_pattern_index(arrangement0[(step>>4)+p*4])]`,
+  read at `(step & 0xf)`.
+* **Post-loop `0x1071a8`** is a no-op in a default run: it reads
+  `0x12865c[voice]` (all zero) and only doubles periods `< 0x7f`, which
+  `0x1072d2` never returns.
+
+`algomusic/render.py::render_tables()` now plays these tables directly:
+`freq = PAL_CLOCK / period`, resampled against the real 8SVX sample rate.  The
+chord/bass/lead pitch and every onset/rest are therefore exact; only the
+drum *voice-id → sample* mapping (and the voice→sample instrument choice) is a
+best-effort guess.
+
+## Still outstanding
+
+* The `0x10e946 != 0` **melody-roll variant** (melody interval tables
+  `0x10e730/0x10e740/0x10e75c`, ring `0x111170`) — behind a config bit that a
+  plain `INIT $seed` run leaves 0.
+* Speech path (`0x10ab38`/`0x10b0a2`, `SPEECH` only).
+* `0x10e92e` (lead = melody vs arp) and `0x10e93e` (bass/arp phasing) alternate
+  modes; `build_tables` implements the melody branch and the phasing branch is
+  not reproduced.
+* The player `0x1073e6`: 16-voice allocation, the per-voice ring at `0x1285d8`
+  and `0x12865c` voice→sample table (needed for an exact drum instrument map).
 
 ## How the port was verified
 
 1. `tools/patch_vamos_exall.py` lets the original reach the play loop and emit
    `LOG=` (see `docs/groundtruth.md`).
 2. A standalone experiment replayed sample-pick + sequencer RNG + title and
-   compared the title against the `LOG=` table — 10/10 on the first try, which
+   compared the title against the `LOG=` table — now 20/20, which
    confirms the sample-pick counts, the selector logic and the RNG site order.
 3. That logic was folded into `algomusic/song.py`; the length was then also
    confirmed (`num_patterns*64` 16th-notes at the BPM).

@@ -43,6 +43,11 @@ CHORD_INTERVALS = {
 }
 
 
+def _s16(x):
+    """Sign-extend a 16-bit value (the binary passes shorts to 0x1072d2)."""
+    return ((x + 0x8000) & 0xFFFF) - 0x8000
+
+
 def load_db():
     with open(DB_PATH) as f:
         return json.load(f)
@@ -115,6 +120,8 @@ class Song:
         self.phrase_index = 0   # perm70() result (0..69)
         self.step_period = 16   # local_30
         self.timing = 0         # local_90
+        self.tables = None      # note-level playback tables (build_tables)
+        self.lead_mode = 0      # _DAT_0010e92e: 0 (default) = melody, else arp
 
     @property
     def total_steps(self):
@@ -294,6 +301,167 @@ class Generator:
             return "%s, %s and %s" % (cap(adj), adjs[a2], adjs[a3])
         return "The %s %s" % (adj, noun)
 
+    # ---- per-step playback-table fill of FUN_00106256 ----------------
+    def build_tables(self, s):
+        """Port the *note-level* output of the sequencer step loop.
+
+        `generate()` reproduces the RNG stream (decisions); this reproduces the
+        per-step tables the player feeds to Paula.  In a default (no-prefs) run
+        it consumes no RNG, because every conditional roll sits behind
+        `0x10e946 != 0` (see docs/sequencer_0x106256.md).
+
+        Returns a dict of parallel per-step arrays, index = global step
+        (0 .. num_patterns*64-1).  Channel voices are the small integer ids the
+        player routes on (chord 0..5, bass 6, melody 7, arp 8, drums 9..15).
+        """
+        from .sequencer import parse_note, note_to_period, drum_pattern_index
+
+        db = self.db
+        ct = db["char_table"]
+        phrase = db["song_structs"][s.phrase_index]
+        L = len(phrase)
+        total = s.num_patterns * 64
+        mask = (s.step_period - 1) & 0xFFFF        # local_30 after "-1"
+        arr0 = s.arrangement_phrases[0]            # drum arrangement
+        arr1 = s.arrangement_phrases[1]            # lead arrangement
+
+        T = {
+            "chord_period": [0] * total, "chord_voice": [0] * total,
+            "bass_period": [0] * total, "bass_voice": [0] * total,
+            "bass_amp": [0] * total, "bass_phase": [0] * total,
+            "lead_period": [0] * total, "lead_voice": [0] * total,
+            "lead_amp": [0] * total, "lead_phase": [0] * total,
+            "drum_period": [0] * total, "drum_vol": [0] * total,
+            "drum_off": [0] * total,
+        }
+
+        step_no = 0
+        local_40 = 3                      # phrase token cursor
+        transpose = s.transpose
+        for p in range(s.num_patterns):
+            pat = s.patterns[p]
+            comp = pat["drums"]           # drums_a  (chord comping, '1'..'9')
+            bassp = pat["drums_b"]        # drums_b  (bass line)
+            mel = pat["melody"]           # melody phrase
+            arp = pat["arp"]              # arp phrase
+            m_comp = len(comp) - 1        # local_68
+            m_bass = len(bassp) - 1       # local_70
+            m_mel = len(mel) - 1          # local_18
+            m_arp = len(arp) - 1          # local_28
+
+            i_comp = i_bass = i_mel = i_arp = 0
+            local_8 = "----------------"
+            local_7c = local_7b = 0
+            local_5c = local_6c = 0
+            local_88 = 0
+
+            for st in range(64):
+                # ---- drum-pattern row (every 16 steps) ----------------
+                if (st & 0xF) == 0:
+                    ch = arr0[(st >> 4) + p * 4]
+                    local_8 = db["drum_patterns"][drum_pattern_index(ch)]
+
+                # ---- new chord token on note boundaries ---------------
+                if (mask & st) == 0:
+                    local_7c = phrase[local_40]
+                    local_7b = phrase[local_40 + 1]
+                    if local_7b == "4":
+                        local_88 = 1
+                    elif local_7b == "6":
+                        local_88 = -1
+                    else:
+                        local_88 = 0
+                    pn = parse_note(phrase[local_40:local_40 + 3])
+                    local_5c = _s16(transpose + pn)
+                    local_6c = note_to_period(local_5c)
+                    local_40 += 4
+                    if L + 1 <= local_40:
+                        local_40 = 3
+
+                if (st & m_comp) == 0:
+                    i_comp = 0
+                if (st & m_mel) == 0:
+                    i_mel = 0
+                if (st & m_arp) == 0:
+                    i_arp = 0
+                if (st & m_bass) == 0:
+                    i_bass = 0
+
+                f = 1 if local_7c.isupper() else 0     # char table bit0
+
+                # ---- chord: comping pattern picks a chord tone -------
+                b = comp[i_comp]
+                if b == "-":
+                    T["chord_voice"][step_no] = 0xFFFF
+                else:
+                    shift = (ord(b) - 0x31) & 0x3F
+                    T["chord_period"][step_no] = (local_6c >> shift) & 0xFFFF
+                    if local_7b == "6":
+                        T["chord_voice"][step_no] = (0 if f == 1 else 1) + 2
+                    elif local_7b == "4":
+                        T["chord_voice"][step_no] = (0 if f == 1 else 1) + 4
+                    else:
+                        T["chord_voice"][step_no] = 0 if f == 1 else 1
+
+                # ---- bass -------------------------------------------
+                cb = bassp[i_bass]
+                if cb == "-":
+                    T["bass_voice"][step_no] = 0xFFFF
+                else:
+                    sem = ct[ord(cb)]
+                    T["bass_period"][step_no] = note_to_period(
+                        _s16(sem + local_5c - 0xC))
+                    T["bass_voice"][step_no] = 6
+                    T["bass_amp"][step_no] = 0        # local_86[2]
+
+                # ---- drums ------------------------------------------
+                dc = local_8[st & 0xF]
+                if dc == "-":
+                    T["drum_period"][step_no] = 0xFFFF
+                else:
+                    voice, vol = {
+                        "#": (0xF, 200), "*": (0xE, 0xBE), "+": (0xB, 200),
+                        ".": (9, 200), ":": (0xC, 200), "X": (0xD, 200),
+                        "^": (0xA, 200),
+                    }[dc]
+                    T["drum_period"][step_no] = voice
+                    T["drum_vol"][step_no] = vol
+                    T["drum_off"][step_no] = 0
+
+                # ---- melody / arp (shared lead tables) --------------
+                # `_DAT_0010e92e == 0` in a default (no-prefs) run, which
+                # forces the melody branch; the arp branch is only reachable
+                # when a prefs/config enables the alternate lead mode.
+                letter = arr1[p * 4 + 3] if len(arr1) > p * 4 + 3 else "\0"
+                if s.lead_mode == 0 or letter not in ("A", "C", "[", "]", "T"):
+                    # melody branch (0x10e92e == 0 in a default run)
+                    if mel[i_mel] == "-":
+                        T["lead_voice"][step_no] = 0xFFFF
+                    else:
+                        sem = ct[local_88 + ord(mel[i_mel])]
+                        T["lead_period"][step_no] = note_to_period(
+                            _s16(sem + local_5c))
+                        T["lead_voice"][step_no] = 7
+                        T["lead_amp"][step_no] = 0     # local_86[1]
+                else:
+                    if arp[i_arp] == "-":
+                        T["lead_voice"][step_no] = 0xFFFF
+                    else:
+                        sem = ct[ord(arp[i_arp])]
+                        T["lead_period"][step_no] = note_to_period(
+                            _s16(sem + local_5c))
+                        T["lead_voice"][step_no] = 8
+                        T["lead_amp"][step_no] = 0     # local_86[0]
+
+                step_no += 1
+                i_comp += 1
+                i_bass += 1
+                i_mel += 1
+                i_arp += 1
+            # /step
+        # /pattern
+        return T
+
     # ---- FUN_001095ea : sample-bank pick (consumes RNG) ----------------
     def sample_pick(self, drawers=None):
         """Replay FUN_00109bfa for every category, in call order.
@@ -401,6 +569,10 @@ class Generator:
                 "echo": self.db["echo"][s.echo],
                 "rmix": self.db["rhythm_mix"][s.rhythm_mix],
             })
+
+        # Note-level playback tables (the part of 0x106256 that feeds Paula).
+        # Consumes no RNG, so it is safe to run after the pattern loop.
+        s.tables = self.build_tables(s)
 
         # FUN_00108816 runs *after* 0x106256 (inside the play routine
         # 0x1073e6) on the same RNG stream, so the name is rolled last.

@@ -73,11 +73,15 @@ python3 -m algomusic -b 176 -f 100 -n 5 -o out.wav
 python3 -m algomusic -s '$4002' --synth -o song.wav
 ```
 
-By default the renderer plays the **real 8SVX instrument bank** shipped with
-the Amiga package (`full/AlgoMusic/{Chords,Bass,Melody,Rhythm,Acid}`): chord,
-bass and melody samples are resampled to the required note frequency on a
-virtual Paula, drums play one-shot. Use `--synth` for the old oscillator
-fallback.
+By default the renderer (`render_tables`) plays the **real 8SVX instrument
+bank** shipped with the Amiga package
+(`full/AlgoMusic/{Chords,Bass,Melody,Rhythm,Acid}`) driven by the exact
+per-step period tables from the sequencer: `freq = 3546895 / period`, resampled
+against each sample's own rate; drums play one-shot. Use `--approx` for the old
+arrangement-based renderer and `--synth` for the plain oscillator fallback.
+
+Remaining inexactness is instrument *choice* (chord-family and drum voice-id →
+sample mapping); pitch and all onsets/rests come straight from the binary.
 
 ## Reproducing the analysis
 
@@ -110,7 +114,11 @@ Requires `python3`, `amitools`+`machine68k` (`pip install amitools machine68k`),
   arrangement/phrase permutations, the optional step-period and timing rolls,
   the echo / rhythm-mix selectors and the four per-pattern selectors);
 * the **title builder `0x108816`** including template fall-through (case 1
-  falls into case 2) and the exact retry loops.
+  falls into case 2) and the exact retry loops;
+* the **note-level output of `0x106256`** — the per-step chord/bass/lead/drum
+  period, voice, amplitude and trigger tables (`Song.build_tables()`), using the
+  `0x10e6d0` char→semitone table and signed-16-bit note arithmetic.  Consumes no
+  RNG in a default run, so it does not disturb the stream.
 
 The consequence: for the same seed the generated **song name** *and* **song
 length** now match the original — verified for 20 seeds in
@@ -124,16 +132,14 @@ the 16×16→32 multiply. The moduli are `rand() % n`; the remainder is what eve
 caller reads. So they shift *nothing*.
 
 **Still needed for *note-level* bit-identical output:**
-1. the per-step playback-table fill of `0x106256` (chord/bass/arp/melody period
-   + voice + amplitude, drum triggers, the `0x10bf50` timing divider's use) —
-   these tables are what the player `0x1073e6` feeds to Paula.  The renderer
-   currently *approximates* them from the selected phrases;
-2. the `0x10e946 != 0` "random melody" variant of `0x106256` (the melody-roll
-   retry loops) and the `0x10e92e`/`0x10e93e` arrangement-letter handling;
-3. the speech path `0x10ab38`/`0x10b0a2` (only with the `SPEECH` switch);
-4. Paula period/volume/offset timing of the player `0x1073e6` for exact audio
-   (the new `render_samples` already plays the *real* 8SVX bank, so the timbre
-   is right; the sample-level timing/offsets are not yet bit-exact).
+1. the `0x10e946 != 0` "random melody" variant of `0x106256` (the melody-roll
+   retry loops, ring `0x111170`, interval tables `0x10e730/40/5c`) and the
+   `0x10e92e`/`0x10e93e` alternate lead/phasing modes;
+2. the speech path `0x10ab38`/`0x10b0a2` (only with the `SPEECH` switch);
+3. Paula player `0x1073e6`: 16-voice allocation, the `0x1285d8` per-voice ring
+   and the `0x12865c` voice→sample table — needed for the exact *drum
+   instrument* map (period/onset timing is already exact from the tables);
+4. sample-DB comment parsing (`0x109c72`…) for per-sample VOLUME/FINETUNE.
 
 **Verification / ground truth.** The original now runs under `vamos`
 (`pip install 'amitools[vamos]'`) far enough to generate a song and write its

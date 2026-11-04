@@ -137,19 +137,23 @@ Done / faithful:
   this is strong evidence the stream is byte-exact.
 
 Outstanding (this is the work list):
-1. **Note-level playback tables of `FUN_00106256`** — the step loop also fills
-   the per-step period/voice/amplitude tables the player feeds to Paula.  The
-   renderer approximates these; porting them is what remains for sample-level
-   audio.  The primitives (note parser, period lookup, drum-pattern index map,
-   char flags, and the output-table map) are already implemented in
-   `algomusic/sequencer.py` + `docs/sequencer_0x106256.md`.
-2. **`0x10e946 != 0` melody-roll variant** and `0x10e92e`/`0x10e93e`
-   arrangement-letter handling (not exercised by a plain `INIT $seed` run).
+1. ~~**Note-level playback tables of `FUN_00106256`**~~ — **done**: the step
+   loop is ported in `Song.build_tables()` (chord/bass/lead/drum period, voice,
+   amp, trigger tables) and rendered by `render_tables()` (`freq = 3546895 /
+   period`).  The chord/bass/lead pitch and all onsets/rests are exact; the
+   voice→sample instrument choices (esp. the drum voice-id map) are still
+   best-effort.  See `docs/sequencer_0x106256.md`.
+2. **`0x10e946 != 0` melody-roll variant** and `0x10e92e`/`0x10e93e` (arp vs
+   melody lead; bass/arp phasing) — not exercised by a plain `INIT $seed` run.
 3. Sample-DB parsing `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`
    (comments → VOLUME/FINETUNE/PHASER…) — only matters for audio.
 4. Speech path `FUN_0010ab38` / `FUN_0010b0a2` (only when `SPEECH` is set).
-5. Paula player `FUN_001073e6` period/volume/offset timing for sample-exact
-   audio (`render_samples` already plays the real bank, so timbre is right).
+5. Paula player `FUN_001073e6` 16-voice allocation, the `0x1285d8` per-voice
+   ring and the `0x12865c` voice→sample table (needed for an exact drum
+   instrument map).
+6. NOTE: capturing the *original's* Paula output under vamos was attempted and
+   abandoned — vamos does not emulate the custom chips and the player is
+   interrupt-driven.  See `docs/paula_capture.md`.
 
 **Verification gate:** `python3 tools/verify_groundtruth.py` must print
 `20/20 seeds match`.  Add more seeds from `docs/groundtruth.md` (captured with
@@ -163,6 +167,7 @@ the vamos recipe) as you go.
 * `python3` not `python`.
 * Keep responses/commits concise and factual.
 * Run the CLI to smoke-test: `python3 -m algomusic --seed '$4002' /tmp/x.wav`.
+  (The output path needs `-o`; the default renderer is `render_tables`.)
 * Commit messages: one-line summary + bullets, prefixed by area, e.g.
   `sequencer: port per-step note-table fill`.
 * Update `docs/` (and this file) whenever you learn something about the binary

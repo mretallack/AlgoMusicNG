@@ -81,8 +81,9 @@ python3 -m algomusic -s '$4002' --synth -o song.wav
 By default the renderer (`render_tables`) plays the **real 8SVX instrument
 bank** shipped with the Amiga package
 (`full/AlgoMusic/{Chords,Bass,Melody,Rhythm,Acid}`) driven by the exact
-per-step period tables from the sequencer: `freq = 3546895 / period`, resampled
-against each sample's own rate; drums play one-shot. Use `--approx` for the old
+per-step period tables from the sequencer: the sample is replayed at
+`3546895 / period` bytes/s (exactly what the original writes to `AUDxPER`,
+independent of the sample's own rate); drums play one-shot. Use `--approx` for the old
 arrangement-based renderer and `--synth` for the plain oscillator fallback.
 
 Instruments are resolved from the *picked* sample-drawer entries exactly as

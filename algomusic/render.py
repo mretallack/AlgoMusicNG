@@ -330,11 +330,19 @@ _DRUM_CAT = {0x9: (4,), 0xA: (6,), 0xB: (5,), 0xC: (4, 5),
              0xD: (5, 6), 0xE: (7,), 0xF: (4, 6), 0x10: (8,)}
 
 
-def _period_ratio(period, rate):
-    if period <= 0 or rate <= 0:
+def _period_ratio(period):
+    """Source samples consumed per output sample for a Paula period.
+
+    The original sets `AUDxPER = period`, so Paula replays the sample bytes at
+    `clock / period` bytes per second -- *independent* of the sample's own
+    rate.  We render at `SR`, so advancing `(clock / period) / SR` source
+    samples per output sample reproduces that exactly.  (Dividing by the
+    sample's rate instead made chords/bass/lead play ~5x too fast.)
+    """
+    if period <= 0:
         return 0.0
     f = PAL_CLOCK / period
-    return min(8.0, max(0.05, f / rate))
+    return min(8.0, max(0.02, f / SR))
 
 
 def render_tables(song, path, bank=None, gain=0.6, loops=1):
@@ -343,7 +351,8 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
     Chord, bass and lead (melody/arp) now use the *exact* Paula period the
     original computed (`3546895 / period`), and every onset/rest comes from the
     step tables rather than a re-derivation of the arrangement.  Drums trigger
-    on the table's non-rest steps; the voice-id -> sample mapping is a guess.
+    on the table's non-rest steps; the voice-id -> sample mapping comes from
+    FUN_0010996c (exact).
     """
     if not getattr(song, "tables", None):
         return render_samples(song, path, bank=bank, gain=gain, loops=loops)
@@ -359,7 +368,7 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
         if not smp_info:
             return
         smp, rate, ls, ll = smp_info
-        r = _period_ratio(period, rate)
+        r = _period_ratio(period)
         if r == 0.0:
             return
         _play(buf, smp, r, int(i * step_n), int(dur), vol, loop=gloop,

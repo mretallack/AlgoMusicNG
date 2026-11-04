@@ -31,6 +31,19 @@ def _freq(midi, finetune):
     return f * (1.0 + finetune / 1000.0)
 
 
+def _softclip(v, knee=0.8):
+    """Scale with no distortion below `knee`; round off only the last dB or so.
+
+    An unconditional `tanh(x * 1.15)` put the whole mix into saturation, which
+    made loud overlapping voices (bass + kick) sound overdriven.  Below `knee`
+    this is exactly linear.
+    """
+    a = abs(v)
+    if a > knee:
+        a = knee + (1.0 - knee) * math.tanh((a - knee) / (1.0 - knee))
+    return math.copysign(a, v)
+
+
 # --------------------------------------------------------------------------
 # sample playback on a virtual Paula
 # --------------------------------------------------------------------------
@@ -140,10 +153,10 @@ def render_samples(song, path, bank=None, gain=0.62, loops=2):
             _play(buf, smp, rate / SR, st, len(smp) + 1, gain * 0.8)
 
     peak = max(1e-9, max(abs(x) for x in buf))
-    scale = 0.95 / peak
+    scale = 0.9 / peak
     data = bytearray()
     for x in buf:
-        v = math.tanh(x * scale * 1.15)
+        v = _softclip(x * scale)
         s = int(max(-1.0, min(1.0, v)) * 32767)
         data += struct.pack("<hh", s, s)
 
@@ -291,11 +304,10 @@ def render(song, path, drum_map=None, gain=0.28):
                 _noise(buf, st, 0.05, gain * 0.28, lp=0.9)
 
     peak = max(1e-9, max(abs(x) for x in buf))
-    scale = 0.95 / peak
+    scale = 0.9 / peak
     data = bytearray()
     for x in buf:
-        v = x * scale
-        v = math.tanh(v * 1.2)
+        v = _softclip(x * scale)
         s = int(max(-1.0, min(1.0, v)) * 32767)
         data += struct.pack("<hh", s, s)
 
@@ -431,10 +443,10 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
                       dur if dur is not None else len(buf), vol)
 
     peak = max(1e-9, max(abs(x) for x in buf))
-    scale = 0.95 / peak
+    scale = 0.9 / peak
     data = bytearray()
     for x in buf:
-        v = math.tanh(x * scale * 1.15)
+        v = _softclip(x * scale)
         s = int(max(-1.0, min(1.0, v)) * 32767)
         data += struct.pack("<hh", s, s)
     with wave.open(path, "wb") as w:

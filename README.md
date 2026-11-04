@@ -14,6 +14,7 @@ full/                     full 1.3 MB archive (includes the sample bank)
 work/                     relocated flat 68k image, Ghidra project, decompiled C
 tools/                    extraction / Ghidra helpers + verify, vamos-dump, compare
 docs/                     RE notes (sequencer, ground truth, Paula capture)
+examples/                 rendered reference songs + notes
 AGENTS.md                 working guide for the codebase
 algomusic/                the Python re-implementation
   db.json                 musical database extracted from the binary

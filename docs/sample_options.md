@@ -30,6 +30,10 @@ tree has **no** filenotes even though the real program always saw them.
 caches them in `algomusic/sample_comments.json` (keyed `"Category/Name"`).
 `algomusic/samples.py` loads that cache (`SampleBank.meta`, `parse_comment`).
 
+The renderer always applies the **timbre-only** options (`VOLUME`, `FINETUNE`).
+The phaser (which perturbs the composition) is only armed with
+`Generator.generate(filenotes=True)` / `python3 -m algomusic --filenotes`.
+
 > Caveat: the ground-truth tables captured under vamos (`tools/dump_vamos_tables.py`)
 > were made from that comment-less extraction, so they are the **un-finetuned**
 > tables.  `Song.build_tables()` therefore stays un-patched; the FINETUNE
@@ -65,9 +69,28 @@ default volume.
 ## PHASERDEPTH / PHASERSPEED
 
 Moves the sample start offset to and fro while playing (the "transforming"
-acid/bass/melody sound).  Depth is in words (2 bytes); the offset sweeps from
-0 to `depth*2` bytes.  Speed is the per-step word delta; the initial offset and
-direction are random.  `FUN_00109fe0` stores these in the `0x113180`/`0x11318c`
-machine used by the `0x113198`-style per-step amp/phase tables
-(`0x125d98`/`0x127598`).  Parsed and cached, but **not yet applied** by
-`render_tables`.
+acid/bass/melody sound).  Depth is in words (2 bytes), so the offset sweeps
+from 0 to `depth*2` bytes.  Speed is the per-step word delta; the initial offset
+and direction are random.  `FUN_00109fe0` stores the depth/speed in
+`0x113180`/`0x11318c` (acid → voice 0, melody → voice 1, bass → voice 2); the
+sequencer `FUN_00106256` then runs a triangle oscillator over them (`0x1062b8`
+init, `0x1063be`… update) and writes the running offset into the amp tables
+(`0x120998` bass, `0x123998` lead).  Parsed and cached, but **not yet applied**
+by `render_tables`.
+
+> **Warning: `PHASERDEPTH` changes the song, not just the timbre.**
+> When a picked acid/melody/bass sample is phaser-armed, the sequencer draws
+> **two extra `rand()` per armed voice** at `0x1062b8`/`0x1062e4`
+> (`local_86[i] = rand() % depth`, `abStack_9f[i] = rand() & 1`).  Those draws
+> are on the same global stream as everything else, so they shift every later
+> decision — including the `rand()&7` step-period tweak (which changes the
+> **length**) and the title rolled by `FUN_00108816`.  Since *every* seed in the
+> bank picks a phaser-armed acid sample, applying the filenotes moves the whole
+> song-space.
+>
+> Our ground truth (and the committed example) is therefore the **comment-less**
+> configuration: under vamos the extracted files have no filenotes, so the
+> depths are 0 and no phaser RNG is drawn.  That is why `verify_groundtruth`
+> says 20/20 — and why we deliberately do **not** consume the phaser RNG in
+> `Generator.generate()`.  Reproducing the *distributed* program's songs would
+> need a filenote-enabled ground truth, which vamos cannot currently produce.

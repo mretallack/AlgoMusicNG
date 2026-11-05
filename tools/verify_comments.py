@@ -66,5 +66,18 @@ check(c.get("Bass/KnisterBass2") == "FINETUNE=1110", "KnisterBass2 comment")
 check(c.get("Bass/TechBass") == "FINETUNE=1000 VOLUME=56", "TechBass comment")
 check("Rhythm/Breakbeat-1" in c, "breakbeat-1 comment present")
 
+# 5. filenotes mode: the phaser arms RNG and must move the song ----------
+from algomusic.song import Generator
+a = Generator(0x88700d6c).generate()             # comment-less (verified)
+b = Generator(0x88700d6c).generate(filenotes=True)
+check(a.name == "The blue lady and the stinky policeman",
+      "default seed is the verified comment-less song")
+check(b.phaser[0][0] == 13000,
+      "filenotes: Wet2 PHASERDEPTH arms voice 0")
+check(a.name != b.name,
+      "phaser RNG shifts the composition (config-B differs from config-A)")
+check(Generator(0x88700d6c).generate(filenotes=True).name == b.name,
+      "filenotes mode is deterministic")
+
 print("\n%s (%d failures)" % ("PASS" if fails == 0 else "FAIL", fails))
 sys.exit(1 if fails else 0)

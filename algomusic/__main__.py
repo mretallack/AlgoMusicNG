@@ -22,6 +22,9 @@ def main(argv=None):
                    help="use the oscillator synth instead of the real 8SVX sample bank")
     p.add_argument("--approx", action="store_true",
                    help="use the old arrangement-based renderer instead of the exact step tables")
+    p.add_argument("--filenotes", action="store_true",
+                   help="apply the sample filenotes (VOLUME/FINETUNE and the "
+                        "PHASER RNG); NOTE: the phaser changes the song")
     args = p.parse_args(argv)
 
     if args.info:
@@ -43,7 +46,8 @@ def main(argv=None):
 
     gen = Generator(seed)
     for i in range(args.count):
-        song = gen.generate(bpm=args.bpm, finetune=args.finetune)
+        song = gen.generate(bpm=args.bpm, finetune=args.finetune,
+                            filenotes=args.filenotes)
         out = args.out if args.count == 1 else args.out.replace(".wav", "_%d.wav" % (i + 1))
         if args.synth:
             render(song, out)

@@ -122,6 +122,8 @@ class Song:
         self.timing = 0         # local_90
         self.tables = None      # note-level playback tables (build_tables)
         self.lead_mode = 0      # _DAT_0010e92e: 0 (default) = melody, else arp
+        self.filenotes = False  # consume phaser RNG from the sample filenotes
+        self.phaser = [(0, 0, 0, 0)] * 3   # (depth, speed, offset, dir) per voice
 
     @property
     def total_steps(self):
@@ -509,11 +511,13 @@ class Generator:
             picks[cat] = (v, names[v])
         return picks
 
-    def generate(self, bpm=160, finetune=100, speech=False, drawers=None):
+    def generate(self, bpm=160, finetune=100, speech=False, drawers=None,
+                 filenotes=False):
         s = Song()
         s.seed = self.seed
         s.bpm = bpm
         s.finetune = finetune
+        s.filenotes = filenotes
 
         # === FUN_001095ea : sample-bank pick, *before* the generator ======
         # (called from FUN_00105caa, after srand(), before the play loop)
@@ -528,7 +532,29 @@ class Generator:
         # FUN_001086dc resets the sticky selectors                 (0x106286)
         self.sel.reset_selectors()
 
-        # per-voice init (0x113180 is all zero in a default run, so no RNG)
+        # Per-voice phaser init (0x1062b8): voices 0/1/2 = acid/melody/bass.
+        # Armed only when the *picked* sample's filenote has PHASERDEPTH; each
+        # armed voice then draws two rand() -- so it shifts the whole song
+        # (title *and* length).  Off by default: our ground truth is the
+        # comment-less configuration.  See docs/sample_options.md.
+        s.phaser = [(0, 0, 0, 0)] * 3
+        if filenotes:
+            from .samples import load_comments, parse_comment
+            com = load_comments()
+            for vi, (cat, sub) in enumerate(((2, "Acid"), (1, "Melody"),
+                                             (0, "Bass"))):
+                depth = speed = 0
+                p = s.picks.get(cat)
+                if p and p[1]:
+                    m = parse_comment(com.get(sub + "/" + p[1], ""))
+                    depth, speed = m["phaser_depth"], m["phaser_speed"]
+                if depth <= 0:
+                    s.phaser[vi] = (0, 0, 0, 0)
+                else:
+                    off = rng.rand() % depth
+                    direction = rng.rand() & 1
+                    s.phaser[vi] = (depth, speed, off, direction)
+
         # arrangement + phrase selection                          (0x10634a)
         g = self.sel.perm9()                       # FUN_00108794 -> 0..8
         phrase_idx = self.sel.perm(                # FUN_00108710 -> 0..69

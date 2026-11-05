@@ -152,7 +152,11 @@ Outstanding (this is the work list):
    FINETUNE (+ the speech/breakbeat `(30000-ft)/bpm` rule).  The filenotes live
    in the LHA archive, not the extracted files; `tools/extract_comments.py`
    caches them in `algomusic/sample_comments.json` and `render_tables()` applies
-   them.  PHASERDEPTH/SPEED are parsed but not yet rendered.  See
+   them.  PHASERDEPTH/SPEED are parsed but not yet rendered.
+   **Beware:** arming the phaser consumes RNG in the sequencer (`0x1062b8`), so
+   it changes the *composition* (title/length), not just the timbre.  Every
+   seed picks a phaser-armed acid sample, so our comment-less ground truth only
+   holds with the phaser **off** — we therefore do not draw that RNG.  See
    `docs/sample_options.md`.
 4. Speech path `FUN_0010ab38` / `FUN_0010b0a2` (only when `SPEECH` is set).
 5. Paula player `FUN_001073e6` 16-voice allocation, the `0x1285d8` per-voice

@@ -65,6 +65,12 @@ comments (lost on a normal filesystem) — see `../docs/sample_options.md`.
 The bass FINETUNE is applied (`period * 1000/(1000+1110)`); PHASER is parsed
 but not yet rendered.
 
+Note: `Wet2` being phaser-armed means the *distributed* original would draw two
+extra `rand()` when generating this seed and produce a **different song**
+("Selfish woman in space", 4m 00s) — the title/length above are the
+comment-less ground truth. We deliberately keep the composition comment-less
+and apply only the timbre-only options.
+
 ### Fidelity notes
 
 Exact (ported 1:1 from the binary — see `../docs/sequencer_0x106256.md` and

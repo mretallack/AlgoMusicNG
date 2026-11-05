@@ -48,6 +48,31 @@ def _s16(x):
     return ((x + 0x8000) & 0xFFFF) - 0x8000
 
 
+def phaser_step(depth, speed, offset, direction):
+    """One step of the sequencer's per-voice sample-start sweep (0x1068f2).
+
+    A triangle oscillator: ``depth`` (0x113180) is the peak, ``speed``
+    (0x11318c) the per-step increment, ``offset`` (local_86) the current
+    value and ``direction`` (abStack_9f) the sign.  It bounces at 0 and at
+    ``depth``.  Its value (in words = sample bytes/2) is written straight
+    into the bass/lead offset tables 0x120998 / 0x123998, which the player
+    adds to the sample-start pointer.  Returns ``(offset, direction)``.
+    """
+    if direction == 0:                         # rising
+        if speed + offset <= depth:
+            offset = speed + offset
+        else:                                  # reflect off the peak
+            offset = (depth * 2 - speed) - offset
+            direction ^= 1
+    else:                                      # falling
+        if offset - speed < 0:                 # reflect off zero
+            offset = speed - offset
+            direction ^= 1
+        else:
+            offset = offset - speed
+    return offset, direction
+
+
 def load_db():
     with open(DB_PATH) as f:
         return json.load(f)
@@ -355,6 +380,17 @@ class Generator:
         step_no = 0
         local_40 = 3                      # phrase token cursor
         transpose = s.transpose
+
+        # Per-voice phaser sweep state (0x1068f2): depth/speed come from the
+        # picked sample's filenote; offset/direction are seeded by
+        # generate().  Voices 0/1/2 = acid/melody/bass.  It is advanced once
+        # per step and its value (in words) lands directly in the bass/lead
+        # offset tables 0x120998 / 0x123998.
+        _ph_depth = [s.phaser[v][0] for v in range(3)]
+        _ph_speed = [s.phaser[v][1] for v in range(3)]
+        _ph_off = [s.phaser[v][2] for v in range(3)]
+        _ph_dir = [s.phaser[v][3] for v in range(3)]
+
         for p in range(s.num_patterns):
             pat = s.patterns[p]
             comp = pat["drums"]           # drums_a  (chord comping, '1'..'9')
@@ -373,6 +409,12 @@ class Generator:
             local_88 = 0
 
             for st in range(64):
+                # advance the 3 phaser triangles (0x1068f2), once per step
+                for _v in range(3):
+                    _ph_off[_v], _ph_dir[_v] = phaser_step(
+                        _ph_depth[_v], _ph_speed[_v], _ph_off[_v],
+                        _ph_dir[_v])
+
                 # ---- drum-pattern row (every 16 steps) ----------------
                 if (st & 0xF) == 0:
                     ch = arr0[(st >> 4) + p * 4]
@@ -431,7 +473,7 @@ class Generator:
                     T["bass_period"][step_no] = note_to_period(
                         _s16(sem + local_5c - 0xC))
                     T["bass_voice"][step_no] = 6
-                    T["bass_amp"][step_no] = 0        # local_86[2]
+                    T["bass_amp"][step_no] = _ph_off[2]   # local_86[2]
 
                 # ---- drums ------------------------------------------
                 dc = local_8[st & 0xF]
@@ -461,7 +503,7 @@ class Generator:
                         T["lead_period"][step_no] = note_to_period(
                             _s16(sem + local_5c))
                         T["lead_voice"][step_no] = 7
-                        T["lead_amp"][step_no] = 0     # local_86[1]
+                        T["lead_amp"][step_no] = _ph_off[1]   # local_86[1]
                 else:
                     if arp[i_arp] == "-":
                         T["lead_voice"][step_no] = 0xFFFF
@@ -470,7 +512,7 @@ class Generator:
                         T["lead_period"][step_no] = note_to_period(
                             _s16(sem + local_5c))
                         T["lead_voice"][step_no] = 8
-                        T["lead_amp"][step_no] = 0     # local_86[0]
+                        T["lead_amp"][step_no] = _ph_off[0]   # local_86[0]
 
                 step_no += 1
                 i_comp += 1

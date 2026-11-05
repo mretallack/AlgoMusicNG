@@ -152,7 +152,11 @@ Outstanding (this is the work list):
    FINETUNE (+ the speech/breakbeat `(30000-ft)/bpm` rule).  The filenotes live
    in the LHA archive, not the extracted files; `tools/extract_comments.py`
    caches them in `algomusic/sample_comments.json` and `render_tables()` applies
-   them.  PHASERDEPTH/SPEED are parsed but not yet rendered.
+   them.  PHASERDEPTH/SPEED (a sample-start **sweep**, not a timbre filter) are
+   parsed, and the sequencer-side triangle oscillator (`0x1068f2`) is now
+   reproduced by `Song.build_tables()` (`phaser_step`) into the bass/lead
+   offset tables (`0x120998`/`0x123998`) when `generate(filenotes=True)` armed a
+   voice; the *renderer* still plays from offset 0.
    **Beware:** arming the phaser consumes RNG in the sequencer (`0x1062b8`), so
    it changes the *composition* (title/length), not just the timbre.  Every
    seed picks a phaser-armed acid sample, so our comment-less ground truth only
@@ -172,7 +176,8 @@ Outstanding (this is the work list):
 * `python3 tools/verify_tables.py` → `10/10 seeds OK` (self-consistency of
   `Song.build_tables`: lengths, determinism, period/voice ranges).
 * `python3 tools/verify_comments.py` → `PASS` (filenote parser, the FINETUNE
-  period formula vs the guide's table, and the comment cache vs the LHA).
+  period formula vs the guide's table, the comment cache vs the LHA, and the
+  phaser triangle / sweep-off table fill).
 * (manual, needs the running original) `tools/dump_vamos_tables.py` +
   `tools/compare_tables.py` diff our tables against the original's captured
   under vamos: **everything is byte-exact** (chord/bass/drum/lead

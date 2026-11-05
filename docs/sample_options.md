@@ -74,9 +74,13 @@ from 0 to `depth*2` bytes.  Speed is the per-step word delta; the initial offset
 and direction are random.  `FUN_00109fe0` stores the depth/speed in
 `0x113180`/`0x11318c` (acid → voice 0, melody → voice 1, bass → voice 2); the
 sequencer `FUN_00106256` then runs a triangle oscillator over them (`0x1062b8`
-init, `0x1063be`… update) and writes the running offset into the amp tables
-(`0x120998` bass, `0x123998` lead).  Parsed and cached, but **not yet applied**
-by `render_tables`.
+init, `0x1068f2` update) and writes the running offset (in words) into the
+bass/lead offset tables (`0x120998` bass, `0x123998` lead — the "amp" names in
+`tools/*` are a misnomer; the value is added to the sample-start pointer).
+`Song.build_tables()` now reproduces this oscillator (`phaser_step`) whenever
+`generate(filenotes=True)` armed a voice, so the tables are exact in filenotes
+mode.  `render_tables` still plays from offset 0, i.e. it does **not** apply
+the sweep to the audio yet.
 
 > **Warning: `PHASERDEPTH` changes the song, not just the timbre.**
 > When a picked acid/melody/bass sample is phaser-armed, the sequencer draws

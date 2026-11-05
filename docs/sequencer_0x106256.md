@@ -106,8 +106,8 @@ cases 1,2 → `local_30 >>= 1`; case 5 → `local_30 *= 2`; 0,3,4 → skip.
 
 ```
 0x119198 chord periods   0x113198 chord voice/flags
-0x11a998 bass  periods   0x114998 bass  voice     0x120998 bass  amp
-0x11d998 arp   periods   0x117998 arp   voice     0x123998 arp   amp
+0x11a998 bass  periods   0x114998 bass  voice     0x120998 bass  sweep-off
+0x11d998 arp   periods   0x117998 arp   voice     0x123998 lead  sweep-off
                          0x11e198 melody periods 0x124998 melody voice 0x125d98 melody phasing
 0x116198 drum  periods   0x11c198 drum  vol       0x122198 drum  off
 0x111170 melody ring (up to 0x29 entries)  -- per-voice ring at 0x1285d8 etc.
@@ -194,9 +194,9 @@ Output tables written per step (index = `DAT_00128198`, the global step counter)
 
 ```
 chord  : 0x119198 period   0x113198 voice
-bass   : 0x11a998 period   0x114998 voice  0x120998 amp  0x125d98 phasing
-arp    : 0x11d998 period   0x117998 voice  0x123998 amp  0x127598 phasing
-melody : 0x11d998 period   0x117998 voice  0x123998 amp
+bass   : 0x11a998 period   0x114998 voice  0x120998 sweep-off 0x125d98 phasing
+arp    : 0x11d998 period   0x117998 voice  0x123998 sweep-off 0x127598 phasing
+melody : 0x11d998 period   0x117998 voice  0x123998 sweep-off
 drum   : 0x116198 period   0x11c198 volume 0x122198 offset
 ring   : 0x111170 melody ring (up to 0x29 entries)
 ```
@@ -260,8 +260,14 @@ FINETUNE from the sample filenotes are applied too (see
 * The player `0x1073e6`: 16-voice allocation and the per-voice ring at
   `0x1285d8`.  Per-voice **volume** defaults to `0x12860a=0x40`
   (set in `FUN_001095ea`) and is overridden by a sample's `VOLUME` filenote.
-* PHASERDEPTH/PHASERSPEED sample-start modulation (acid/melody/bass) is parsed
-  and stored (`SampleBank.meta`) but not yet applied in the renderer.
+* PHASERDEPTH/PHASERSPEED sample-start sweep (acid/melody/bass): the
+  sequencer-side triangle oscillator (`0x1068f2`) is now reproduced by
+  `Song.build_tables()` (`phaser_step`), writing the per-step word offset into
+  `0x120998`/`0x123998` when `generate(filenotes=True)` armed a voice.  The
+  *renderer* still plays from offset 0 — applying the sweep to the audio
+  needs the player's `AUDxPT = base + offset*2` write.  (The player reads
+  offsets the same way from `0x11f198` at `0x107d22`; that table is written by
+  the speech path `0x10b196`/`0x10b22c`/`0x10b2ce`.)
 
 ## Instrument map (recovered from `FUN_001095ea` / `FUN_0010996c`)
 
@@ -306,9 +312,9 @@ Result for seed `$4002` (and the same everywhere):
 | table | result |
 |-------|--------|
 | chord period/voice | **exact** |
-| bass period/voice/amp | **exact** |
+| bass period/voice/sweep-off | **exact** |
 | drum period/volume/offset | **exact** |
-| lead **voice**/amp | **exact** |
+| lead **voice**/sweep-off | **exact** |
 | lead period | **exact** |
 
 **All tables are now byte-exact** for every seed tested (`$4002`, `$1`,

@@ -79,5 +79,38 @@ check(a.name != b.name,
 check(Generator(0x88700d6c).generate(filenotes=True).name == b.name,
       "filenotes mode is deterministic")
 
+# 6. phaser triangle oscillator + table fill ----------------------------
+from algomusic.song import phaser_step
+
+# bounce: from the peak (dir 1) it must fall to 0 and come back, never leave
+# [0, depth].
+depth, speed = 1000, 300
+off, d = depth, 1
+seen = []
+for _ in range(20):
+    off, d = phaser_step(depth, speed, off, d)
+    seen.append(off)
+check(all(0 <= v <= depth for v in seen), "phaser stays within [0, depth]")
+check(min(seen) == 0 and max(seen) == depth,
+      "phaser triangle reaches both 0 and depth")
+check(phaser_step(0, 0, 0, 0) == (0, 0), "unarmed voice stays at 0")
+
+# table fill: seed $1 picks Melody/MagicTubes (PHASERDEPTH=1200, armed) and
+# Bass/KnisterBass2 (no phaser), Acid/Distorted (awaits the arp branch).
+g1 = Generator(1)
+s1 = g1.generate(filenotes=True)
+check(s1.phaser[1][0] == 1200, "seed $1: MagicTubes arms melody (voice 1)")
+t1 = g1.build_tables(s1)
+check(any(t1["lead_amp"]) and all(0 <= v <= 1200 for v in t1["lead_amp"]),
+      "filenotes: lead sweep-off table is filled within depth")
+check(all(t1["bass_amp"][i] == 0 for i in range(len(t1["bass_amp"]))),
+      "filenotes: unphased bass stays at offset 0")
+# default (comment-less) run must leave the sweep tables at 0 (verified)
+g0 = Generator(1)
+s0 = g0.generate()
+t0 = g0.build_tables(s0)
+check(not any(t0["lead_amp"]) and not any(t0["bass_amp"]),
+      "default: no sweep any voice (comment-less ground truth)")
+
 print("\n%s (%d failures)" % ("PASS" if fails == 0 else "FAIL", fails))
 sys.exit(1 if fails else 0)

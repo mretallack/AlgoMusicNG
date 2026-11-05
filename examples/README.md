@@ -5,6 +5,7 @@ Rendered songs, kept as audible reference output of the re-implementation.
 | file | seed | title | length |
 |------|------|-------|--------|
 | `blue-lady-stinky-policeman-88700d6c.mp3` | `$88700d6c` | The blue lady and the stinky policeman | 02m 36s |
+| `my-cindy-is-your-scientist-74f1bc07.mp3` | `$74f1bc07` | My Cindy is your scientist | 03m 24s |
 
 ## The blue lady and the stinky policeman — `INIT $88700d6c`
 
@@ -95,3 +96,70 @@ Not yet modelled (affects the audio, not the notes/timing): the player's
 4-channel voice allocation (channel stealing/retrigger when more than four
 voices coincide). The mix in the MP3 is therefore a close but not bit-identical
 rendition.
+
+## My Cindy is your scientist — `INIT $74f1bc07`
+
+* **Seed / `RandomInit`:** `$74f1bc07` (hex), `1961999367` (decimal)
+* **Title:** *My Cindy is your scientist*
+* **Length:** 03m 24s (34 patterns × 64 steps = 2176 steps at BPM 160)
+* **Transpose:** −2 · **step period:** 8 · **timing:** 256 · **arrangement:** 2
+
+This is a **randomly chosen seed** (not one of the ground-truth-verified ones);
+it is included as a second audible reference of the default renderer. The
+title/length are what the port produces; they have not been checked against a
+`LOG=` capture of the original.
+
+### Reproduce
+
+```sh
+# WAV, exact step tables + real 8SVX sample bank (default renderer)
+python3 -m algomusic -s '$74f1bc07' -o my-cindy.wav
+
+# then, if you want the MP3 that is committed here
+ffmpeg -y -i my-cindy.wav -codec:a libmp3lame -qscale:a 2 \
+    my-cindy-is-your-scientist-74f1bc07.mp3
+```
+
+Defaults used: BPM 160, finetune 100, `render_tables` (no `--synth`/`--approx`).
+
+### Instrument selection (from the picked sample-drawer entries)
+
+`Song.picks` for this seed:
+
+| category | file |
+|----------|------|
+| Chords (3)    | `Strange-Maj` |
+| Melody (1)    | `Pianosolo` |
+| Acid (2)      | `Distorted` |
+| Bass (0)      | `BigBass2` |
+| BreakBeat (8) | `breakbeat-6` |
+| Base (4)      | `Base-3` |
+| Clap (5)      | `Clap-3` |
+| Hihat (6)     | `Hihat-8` |
+| Snare (7)     | `Snare-3` |
+
+Drum voice ids used: `0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf` (all seven drum
+voices). Lead voice `7` (melody), bass voice `6`, chord voices `0..5`.
+
+### Per-sample options (filenotes)
+
+The picked samples carry these LHA filenotes (see `../docs/sample_options.md`):
+
+| sample | filenote |
+|--------|----------|
+| `Melody/Pianosolo` | `VOLUME=40` |
+| `Bass/BigBass2`   | `FINETUNE=1000` |
+| `Acid/Distorted`  | `PHASERDEPTH=13000 PHASERSPEED=16` |
+
+`VOLUME=40` and `FINETUNE=1000` are applied by the renderer. As with the first
+example, `Distorted` being phaser-armed means the *distributed* original would
+draw two extra `rand()` and produce a **different song**; the composition here
+is the comment-less one, and the phaser sweep is not applied (the committed MP3
+is the comment-less configuration).
+
+### Fidelity notes
+
+Same as the first example: the RNG stream / title, the per-step
+period/voice/amp tables, the voice→sample map and per-sample VOLUME/FINETUNE
+are exact; the player's 4-channel voice allocation is not modelled, so the mix
+is a close but not bit-identical rendition.

@@ -62,8 +62,9 @@ Base+Clap, Clap+Hihat, Base+Hihat).
 The picked bass, `KnisterBass2`, carries a filenote `FINETUNE=1110`; `Wet2`
 carries `PHASERDEPTH=13000 PHASERSPEED=100`. These come from the LHA file
 comments (lost on a normal filesystem) — see `../docs/sample_options.md`.
-The bass FINETUNE is applied (`period * 1000/(1000+1110)`); PHASER is parsed
-but not yet rendered.
+The bass FINETUNE is applied (`period * 1000/(1000+1110)`); PHASER is parsed and
+its sequencer-side sweep oscillator is modelled in `build_tables`, but the
+renderer still plays from sample offset 0.
 
 Note: `Wet2` being phaser-armed means the *distributed* original would draw two
 extra `rand()` when generating this seed and produce a **different song**
@@ -90,6 +91,7 @@ Exact (ported 1:1 from the binary — see `../docs/sequencer_0x106256.md` and
 > `FINETUNE=1110` to the bass) is **not** expected to match a comment-less
 > capture sample-for-sample.
 
-Not yet modelled (affects timbre, not notes/timing): `PHASERDEPTH`/`PHASERSPEED`
-sample-start modulation, and the player's 16-voice allocation / ring. The mix
-in the MP3 is therefore a close but not bit-identical rendition.
+Not yet modelled (affects the audio, not the notes/timing): applying the
+`PHASERDEPTH`/`PHASERSPEED` sample-start sweep in the *renderer* (the sequencer
+side is exact), and the player's 16-voice allocation / ring. The mix in the MP3
+is therefore a close but not bit-identical rendition.

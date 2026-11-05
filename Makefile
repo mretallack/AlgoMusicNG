@@ -20,6 +20,7 @@ extract:
 
 db: extract
 	python3 tools/extract_db.py
+	python3 tools/extract_comments.py
 
 ghidra:
 	mkdir -p work/ghidra_proj
@@ -36,6 +37,7 @@ run:
 verify:
 	python3 tools/verify_groundtruth.py
 	python3 tools/verify_tables.py
+	python3 tools/verify_comments.py
 
 clean:
 	rm -rf work

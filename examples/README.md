@@ -13,10 +13,10 @@ Rendered songs, kept as audible reference output of the re-implementation.
 * **Length:** 02m 36s (26 patterns × 64 steps = 1664 steps at BPM 160)
 * **Transpose:** −1 · **step period:** 32 · **timing:** 512 · **arrangement:** 5
 
-This seed was chosen because it has been **independently confirmed against the
-original AlgoMusic v2.4** — both the generated *title* and the *audio* match
-(played on real v2.4 and compared by ear). The original's `LOG=` line under
-vamos reads:
+This seed was chosen because its **title and length** have been independently
+confirmed against the original AlgoMusic v2.4 (the `LOG=` line below). The
+audio is a faithful reconstruction, not a bit-exact capture — see the fidelity
+notes at the end. The original's `LOG=` line under vamos reads:
 
 ```
 Date      Time   Songname                           Randominit  Nr  Length
@@ -57,17 +57,33 @@ Defaults used: BPM 160, finetune 100, `render_tables` (no `--synth`/`--approx`).
 Drum voice ids used: `0x9, 0xa, 0xb, 0xc, 0xd, 0xf` (Base, Hihat, Clap,
 Base+Clap, Clap+Hihat, Base+Hihat).
 
+### Per-sample options (filenotes)
+
+The picked bass, `KnisterBass2`, carries a filenote `FINETUNE=1110`; `Wet2`
+carries `PHASERDEPTH=13000 PHASERSPEED=100`. These come from the LHA file
+comments (lost on a normal filesystem) — see `../docs/sample_options.md`.
+The bass FINETUNE is applied (`period * 1000/(1000+1110)`); PHASER is parsed
+but not yet rendered.
+
 ### Fidelity notes
 
-Exact (ported 1:1 from the binary — see `../docs/sequencer_0x106256.md`):
+Exact (ported 1:1 from the binary — see `../docs/sequencer_0x106256.md` and
+`../docs/sample_options.md`):
 
 * the whole RNG stream of the sequencer, so the **title** is byte-exact
   (`tools/verify_groundtruth.py`, 20/20 seeds);
 * the per-step period/voice/amp tables — **byte-exact** against the original's
   captured RAM (`tools/compare_tables.py`);
 * the voice→sample instrument map (`FUN_001095ea`/`FUN_0010996c`) and playback
-  rate (`AUDxPER = period`).
+  rate (`AUDxPER = period`);
+* per-sample `VOLUME` and normal-sample `FINETUNE` (the filenote post-loop
+  `0x1071a8`; `tools/verify_comments.py`).
 
-Not yet modelled (affects timbre, not notes/timing): per-sample
-VOLUME/FINETUNE from the 8SVX comments, and the player's 16-voice allocation /
-ring. The mix in the MP3 is therefore a close but not bit-identical rendition.
+> Because the checked-out bank has no filenotes, the vamos ground truth is the
+> *un-finetuned* configuration — so the committed MP3 (which does apply
+> `FINETUNE=1110` to the bass) is **not** expected to match a comment-less
+> capture sample-for-sample.
+
+Not yet modelled (affects timbre, not notes/timing): `PHASERDEPTH`/`PHASERSPEED`
+sample-start modulation, and the player's 16-voice allocation / ring. The mix
+in the MP3 is therefore a close but not bit-identical rendition.

@@ -357,6 +357,30 @@ def _period_ratio(period):
     return min(8.0, max(0.02, f / SR))
 
 
+def apply_finetune(period, finetune):
+    """Scale a note period by a sample's FINETUNE (permille of frequency).
+
+    The guide's ``Factor = (x+1000)/1000`` is on *frequency*, so the period
+    scales by ``1000/(x+1000)``.  The binary does exactly this in the sequencer
+    post-loop (``0x1071a8``), reading ``0x12865c[voice]`` (filled by
+    ``FUN_00109fe0`` from the filenote) and dividing with the signed 32-bit
+    helper ``FUN_0010be8c``.  ``finetune == 0`` (no comment) leaves the period
+    untouched; ``finetune == 1000`` doubles the pitch (period/2).
+    """
+    if not finetune or period <= 0:
+        return period
+    num = period * 1000
+    den = 1000 + finetune
+    q = abs(num) // abs(den)
+    return -q if (num < 0) != (den < 0) else q
+
+
+def _vol_scale(meta):
+    """Amplitude scale from a sample's VOLUME option (0..64, default 64)."""
+    v = meta.get("volume", 64)
+    return max(0.0, min(1.0, v / 64.0))
+
+
 def render_tables(song, path, bank=None, gain=0.6, loops=1):
     """Render using the exact note-level tables (`song.tables`).
 
@@ -375,6 +399,12 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
     nsteps = song.total_steps
     total = int(nsteps * step * SR) + SR // 2
     buf = [0.0] * total
+
+    _DEF_META = {"volume": 64, "finetune": 0, "phaser_depth": 0,
+                 "phaser_speed": 0}
+
+    def _rmeta(rel):
+        return bank.meta(rel) if rel else _DEF_META
 
     def hit(i, smp_info, period, vol, dur, gloop=True):
         if not smp_info:
@@ -399,48 +429,77 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
 
     chord_prefix = (pick_name(3) or "C-Maj")
     chord_prefix = chord_prefix[:-4] if chord_prefix.endswith("-Maj") else "C"
+    chord_paths = ["Chords/" + chord_prefix + s for s in _CHORD_SUFFIX]
     chord_smps = [_smp("Chords", chord_prefix + s) for s in _CHORD_SUFFIX]
     if not chord_smps[0]:
         chord_smps = [bank.chords.get("C-Maj")] * 6
+    chord_meta = [_rmeta(p) for p in chord_paths]
 
-    bass_smp = _smp("Bass", pick_name(0)) or bank.bass
-    lead_smp = _smp("Melody", pick_name(1)) or bank.melody
-    drum_smps = {v: [_smp("Rhythm", pick_name(c)) for c in cats]
-                 for v, cats in _DRUM_CAT.items()}
+    bass_name = pick_name(0)
+    bass_smp = _smp("Bass", bass_name) or bank.bass
+    bass_meta = _rmeta("Bass/" + bass_name if bass_name else None)
+    lead_name = pick_name(1)
+    lead_smp = _smp("Melody", lead_name) or bank.melody
+    lead_meta = _rmeta("Melody/" + lead_name if lead_name else None)
+
+    drum_smps = {}
+    for v, cats in _DRUM_CAT.items():
+        drum_smps[v] = [(_smp("Rhythm", pick_name(c)),
+                         "Rhythm/" + pick_name(c) if pick_name(c) else None)
+                        for c in cats]
 
     for i in range(nsteps):
         # chord
         if T["chord_voice"][i] != 0xFFFF:
             v = T["chord_voice"][i]
+            m = chord_meta[v] if 0 <= v < 6 else chord_meta[0]
             hit(i, chord_smps[v] if 0 <= v < 6 else chord_smps[0],
-                T["chord_period"][i], gain * 0.5, step_n * 1.05)
+                apply_finetune(T["chord_period"][i], m["finetune"]),
+                gain * 0.5 * _vol_scale(m), step_n * 1.05)
         # bass
         if T["bass_voice"][i] != 0xFFFF:
-            hit(i, bass_smp, T["bass_period"][i], gain * 0.45, step_n * 1.05)
+            hit(i, bass_smp,
+                apply_finetune(T["bass_period"][i], bass_meta["finetune"]),
+                gain * 0.45 * _vol_scale(bass_meta), step_n * 1.05)
         # lead
         if T["lead_voice"][i] != 0xFFFF:
-            hit(i, lead_smp, T["lead_period"][i], gain * 0.36, step_n * 1.9)
+            hit(i, lead_smp,
+                apply_finetune(T["lead_period"][i], lead_meta["finetune"]),
+                gain * 0.36 * _vol_scale(lead_meta), step_n * 1.9)
     # ---- drums: one-shot, one Paula voice each ---------------------------
     # The player allocates a fixed voice per drum id, so a new hit *retriggers*
     # (cuts) the previous one instead of piling on top -- and it plays the whole
     # sample at its natural rate.  Accumulating overlapping one-shots (and
-    # cutting them short) made the drums muddy and far too loud.
+    # cutting them short) made the drums muddy and far too loud.  Two-source
+    # voices (0xc/0xd/0xf) are pre-mixed by the original into one buffer at the
+    # default volume, so their per-sample VOLUME comments do not apply; a
+    # breakbeat (voice 0x10) plays at the BPM-locked period (30000-ft)/bpm.
     drum_hits = {}
     for i in range(nsteps):
         if T["drum_period"][i] != 0xFFFF:
             drum_hits.setdefault(T["drum_period"][i], []).append(i)
     for v, steps in drum_hits.items():
-        srcs = [d for d in drum_smps.get(v, ()) if d]
+        srcs = [(s, rel) for (s, rel) in drum_smps.get(v, ()) if s]
+        combined = len(srcs) > 1
         for k, stp in enumerate(steps):
             start = int(stp * step_n)
             if k + 1 < len(steps):
                 dur = int(steps[k + 1] * step_n) - start
             else:
                 dur = None                       # play the sample out
-            vol = gain * 0.30 * (min(200, T["drum_vol"][stp]) / 200.0)
-            for smp, rate, _ls, _ll in srcs:
-                _play(buf, smp, rate / SR, start,
-                      dur if dur is not None else len(buf), vol)
+            vdrum = gain * 0.30 * (min(200, T["drum_vol"][stp]) / 200.0)
+            for smp_info, rel in srcs:
+                smp, rate, _ls, _ll = smp_info
+                meta = _rmeta(rel)
+                vs = 1.0 if combined else _vol_scale(meta)
+                if v == 0x10:
+                    per = max(1.0, (30000.0 - meta["finetune"]) / song.bpm)
+                    r = _period_ratio(per)
+                    _play(buf, smp, r if r > 0 else rate / SR, start,
+                          dur if dur is not None else len(buf), vdrum * vs)
+                else:
+                    _play(buf, smp, rate / SR, start,
+                          dur if dur is not None else len(buf), vdrum * vs)
 
     peak = max(1e-9, max(abs(x) for x in buf))
     scale = 0.9 / peak

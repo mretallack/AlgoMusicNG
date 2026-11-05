@@ -243,9 +243,10 @@ Recovered specifics:
 `freq = PAL_CLOCK / period`, resampled against the real 8SVX sample rate.  The
 chord/bass/lead pitch and every onset/rest are therefore exact, and
 instruments are chosen from the picked sample-drawer entries exactly as
-`FUN_001095ea` does (see the instrument map below).  What is *not* yet modelled
-is per-sample VOLUME/FINETUNE from the 8SVX comments and the player's
-16-voice allocation/ring.
+`FUN_001095ea` does (see the instrument map below).  Per-sample VOLUME and
+FINETUNE from the sample filenotes are applied too (see
+`docs/sample_options.md`).  What is *not* yet modelled is the player's
+16-voice allocation / ring.
 
 ## Still outstanding
 
@@ -256,10 +257,11 @@ is per-sample VOLUME/FINETUNE from the 8SVX comments and the player's
 * `0x10e92e` (lead = melody vs arp) and `0x10e93e` (bass/arp phasing) alternate
   modes; `build_tables` implements the melody branch and the phasing branch is
   not reproduced.
-* The player `0x1073e6`: 16-voice allocation, the per-voice ring at `0x1285d8`
-  and `0x12865c` voice→sample table, plus per-sample VOLUME/FINETUNE from the
-  8SVX comments (`0x109c72`…).  Per-voice **volume** defaults to `0x12860a=0x40`
-  (set in `FUN_001095ea`).
+* The player `0x1073e6`: 16-voice allocation and the per-voice ring at
+  `0x1285d8`.  Per-voice **volume** defaults to `0x12860a=0x40`
+  (set in `FUN_001095ea`) and is overridden by a sample's `VOLUME` filenote.
+* PHASERDEPTH/PHASERSPEED sample-start modulation (acid/melody/bass) is parsed
+  and stored (`SampleBank.meta`) but not yet applied in the renderer.
 
 ## Instrument map (recovered from `FUN_001095ea` / `FUN_0010996c`)
 

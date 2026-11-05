@@ -18,12 +18,13 @@ this file before changing code.
 | `algomusic/rng.py` | exact AlgoMusic PRNG (`srand`/`rand`), recovered from the binary |
 | `algomusic/song.py` | selector helpers + generator + title builder |
 | `algomusic/samples.py` | loader for the real 8SVX sample bank |
+| `algomusic/sample_comments.json` | per-sample filenotes (VOLUME/FINETUNE/PHASER) mined from the LHA |
 | `algomusic/render.py` | offline renderers (`render_samples` = real bank, `render` = oscillator synth) |
 | `algomusic/db.json` | decoded musical database (phrases, drums, words, …) |
 | `algomusic/__main__.py` | CLI (`python -m algomusic --seed $4002 out.wav`) |
 | `work/` | RE artefacts: `algomusic.bin`, relocations, `decompiled_all.c`, `tables.json`, `db_dump.txt`, Ghidra project |
 | `tools/` | helper scripts (Ghidra export, hunk extraction, table extraction, **vamos patch**) |
-| `docs/` | `groundtruth.md`, `sequencer_0x106256.md`, this workflow doc |
+| `docs/` | `groundtruth.md`, `sequencer_0x106256.md`, `sample_options.md`, this workflow doc |
 | `full/AlgoMusic/` | the **real sample bank** (8SVX + a few headerless raw files) and the original `AlgoMusic.000` binary |
 | `orig/`, `*.lha` | original distribution archives |
 
@@ -146,8 +147,13 @@ Outstanding (this is the work list):
    `docs/sequencer_0x106256.md`).  
 2. **`0x10e946 != 0` melody-roll variant** and `0x10e92e`/`0x10e93e` (arp vs
    melody lead; bass/arp phasing) — not exercised by a plain `INIT $seed` run.
-3. Sample-DB parsing `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`
-   (comments → VOLUME/FINETUNE/PHASER…) — only matters for audio.
+3. **Sample-DB parsing** `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`
+   (filenotes → VOLUME/FINETUNE/PHASER…) — **done** for VOLUME + normal-sample
+   FINETUNE (+ the speech/breakbeat `(30000-ft)/bpm` rule).  The filenotes live
+   in the LHA archive, not the extracted files; `tools/extract_comments.py`
+   caches them in `algomusic/sample_comments.json` and `render_tables()` applies
+   them.  PHASERDEPTH/SPEED are parsed but not yet rendered.  See
+   `docs/sample_options.md`.
 4. Speech path `FUN_0010ab38` / `FUN_0010b0a2` (only when `SPEECH` is set).
 5. Paula player `FUN_001073e6` 16-voice allocation, the `0x1285d8` per-voice
    ring and the `0x12865c` voice→sample table (needed for an exact drum
@@ -156,11 +162,13 @@ Outstanding (this is the work list):
    abandoned — vamos does not emulate the custom chips and the player is
    interrupt-driven.  See `docs/paula_capture.md`.
 
-**Verification gate:** `make verify` runs both checks and must pass:
+**Verification gate:** `make verify` runs all checks and must pass:
 * `python3 tools/verify_groundtruth.py` → `20/20 seeds match` (name + length vs
   the original's `LOG=` line); add more seeds from `docs/groundtruth.md`.
 * `python3 tools/verify_tables.py` → `10/10 seeds OK` (self-consistency of
   `Song.build_tables`: lengths, determinism, period/voice ranges).
+* `python3 tools/verify_comments.py` → `PASS` (filenote parser, the FINETUNE
+  period formula vs the guide's table, and the comment cache vs the LHA).
 * (manual, needs the running original) `tools/dump_vamos_tables.py` +
   `tools/compare_tables.py` diff our tables against the original's captured
   under vamos: **everything is byte-exact** (chord/bass/drum/lead

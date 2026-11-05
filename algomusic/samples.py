@@ -8,12 +8,15 @@ raw headerless signed-8bit PCM.  We accept both.
 The loader returns normalised float samples (-1..1), which the renderer then
 plays back on a virtual Paula, resampling to the requested note frequency.
 """
+import json
 import os
+import re
 import struct
 
 HERE = os.path.dirname(__file__)
 REPO = os.path.dirname(HERE)
 DEFAULT_ROOT = os.path.join(REPO, "full", "AlgoMusic")
+COMMENTS_PATH = os.path.join(HERE, "sample_comments.json")
 
 # Amiga PAL Paula clock
 PAL_CLOCK = 3546895.0
@@ -55,6 +58,46 @@ def load_8svx(path):
     # signed 8-bit -> float
     smp = [(b - 256 if b > 127 else b) / 128.0 for b in raw]
     return smp, rate, loop_start, loop_len
+
+
+# --------------------------------------------------------------------------
+# Per-sample filenotes (file comments).  FUN_00109fe0 @ 0x109fe0 reads each
+# sample's AmigaDOS comment and parses VOLUME / FINETUNE / PHASERDEPTH /
+# PHASERSPEED out of it (see "Sample options" in AlgoMusic.guide).  The
+# comments are stored in the LHA archive, not in the extracted files, so we
+# mine them once into algomusic/sample_comments.json (tools/extract_comments.py).
+# --------------------------------------------------------------------------
+_COMMENT_FIELDS = {
+    "VOLUME": "volume",
+    "FINETUNE": "finetune",
+    "PHASERDEPTH": "phaser_depth",
+    "PHASERSPEED": "phaser_speed",
+}
+
+
+def parse_comment(text):
+    """Parse an AlgoMusic filenote into a dict of per-sample options.
+
+    Defaults match the binary: volume 64 (max), everything else 0.  Accepts
+    both ``KEY=value`` and the sloppy ``KEY value`` form found in the bank
+    (e.g. ``Speech/4-Extacy`` has ``FINETUNE -14000``).
+    """
+    meta = {"volume": 64, "finetune": 0, "phaser_depth": 0, "phaser_speed": 0}
+    if not text:
+        return meta
+    for key, val in re.findall(
+            r"(VOLUME|FINETUNE|PHASERDEPTH|PHASERSPEED)\s*=?\s*(-?\d+)",
+            text.upper()):
+        meta[_COMMENT_FIELDS[key]] = int(val)
+    return meta
+
+
+def load_comments(path=COMMENTS_PATH):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except OSError:
+        return {}
 
 
 # The drawer scan performed by FUN_001094b4: (category, drawer, AmigaDOS
@@ -115,7 +158,12 @@ class SampleBank:
         self.bass = None
         self.melody = None
         self.drums = {}
+        self.comments = load_comments()
         self._load()
+
+    def meta(self, rel):
+        """Per-sample options (volume/finetune/phaser) for ``"Cat/Name"``."""
+        return parse_comment(self.comments.get(rel, ""))
 
     def _get(self, rel):
         if rel not in self.cache:

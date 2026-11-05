@@ -79,8 +79,18 @@ bass/lead offset tables (`0x120998` bass, `0x123998` lead — the "amp" names in
 `tools/*` are a misnomer; the value is added to the sample-start pointer).
 `Song.build_tables()` now reproduces this oscillator (`phaser_step`) whenever
 `generate(filenotes=True)` armed a voice, so the tables are exact in filenotes
-mode.  `render_tables` still plays from offset 0, i.e. it does **not** apply
-the sweep to the audio yet.
+mode.  `render_tables` applies the sweep too: it starts the bass/lead sample
+`sweep*2` bytes (= 8-bit samples) into the sample (the player sets
+`AUDxPT = base + offset*2`).  A comment-less run has every sweep at 0, so the
+default mix is unchanged.
+
+How the player reaches these tables: all voice tables sit on an 0x1800-byte
+grid — `0x113198 + cat*0x1800` = voice, `0x119198 + cat*0x1800` = period, and
+the sweep/offset tables `0x6000` further on (`0x11f198 + cat*0x1800`).  The
+player only `lea`s the base `0x119198`/`0x113198` and adds `cat*0x1800`
+(bass cat 1 → `0x11a998`, lead cat 3 → `0x11d998`; sweeps → `0x120998`/
+`0x123998`), which is why an absolute-reference scan shows no separate relocs
+for those tables.
 
 > **Warning: `PHASERDEPTH` changes the song, not just the timbre.**
 > When a picked acid/melody/bass sample is phaser-armed, the sequencer draws

@@ -112,5 +112,17 @@ t0 = g0.build_tables(s0)
 check(not any(t0["lead_amp"]) and not any(t0["bass_amp"]),
       "default: no sweep any voice (comment-less ground truth)")
 
+# 7. renderer sweep offset ----------------------------------------------
+from algomusic.render import _play
+
+# a non-zero start offset must move the read position into the sample
+smp = [0.0] * 50 + [1.0] * 50
+b0 = [0.0] * 10
+_play(b0, smp, 1.0, 0, 10, 1.0)
+b1 = [0.0] * 10
+_play(b1, smp, 1.0, 0, 10, 1.0, smp_off=50)
+check(max(abs(x) for x in b0) == 0.0 and max(abs(x) for x in b1) > 0.0,
+      "smp_off moves the sample-start read position")
+
 print("\n%s (%d failures)" % ("PASS" if fails == 0 else "FAIL", fails))
 sys.exit(1 if fails else 0)

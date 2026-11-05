@@ -261,13 +261,13 @@ FINETUNE from the sample filenotes are applied too (see
   `0x1285d8`.  Per-voice **volume** defaults to `0x12860a=0x40`
   (set in `FUN_001095ea`) and is overridden by a sample's `VOLUME` filenote.
 * PHASERDEPTH/PHASERSPEED sample-start sweep (acid/melody/bass): the
-  sequencer-side triangle oscillator (`0x1068f2`) is now reproduced by
+  sequencer-side triangle oscillator (`0x1068f2`) is reproduced by
   `Song.build_tables()` (`phaser_step`), writing the per-step word offset into
-  `0x120998`/`0x123998` when `generate(filenotes=True)` armed a voice.  The
-  *renderer* still plays from offset 0 — applying the sweep to the audio
-  needs the player's `AUDxPT = base + offset*2` write.  (The player reads
-  offsets the same way from `0x11f198` at `0x107d22`; that table is written by
-  the speech path `0x10b196`/`0x10b22c`/`0x10b2ce`.)
+  `0x120998`/`0x123998` when `generate(filenotes=True)` armed a voice, and
+  `render_tables()` now applies it as a sample-start read offset.  (The player
+  reads the offset at `0x107d22`, e.g. `0x11f198` for the chord voice; the
+  bass/lead tables are reached on the same 0x1800 grid — see
+  `docs/sample_options.md`.)
 
 ## Instrument map (recovered from `FUN_001095ea` / `FUN_0010996c`)
 

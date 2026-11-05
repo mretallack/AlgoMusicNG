@@ -156,16 +156,25 @@ Outstanding (this is the work list):
    parsed, and the sequencer-side triangle oscillator (`0x1068f2`) is now
    reproduced by `Song.build_tables()` (`phaser_step`) into the bass/lead
    offset tables (`0x120998`/`0x123998`) when `generate(filenotes=True)` armed a
-   voice; the *renderer* still plays from offset 0.
+   voice, and `render_tables()` applies the sweep as a sample-start read offset
+   (`AUDxPT = base + offset*2`).
    **Beware:** arming the phaser consumes RNG in the sequencer (`0x1062b8`), so
    it changes the *composition* (title/length), not just the timbre.  Every
    seed picks a phaser-armed acid sample, so our comment-less ground truth only
    holds with the phaser **off** — we therefore do not draw that RNG.  See
    `docs/sample_options.md`.
 4. Speech path `FUN_0010ab38` / `FUN_0010b0a2` (only when `SPEECH` is set).
-5. Paula player `FUN_001073e6` 16-voice allocation, the `0x1285d8` per-voice
-   ring and the `0x12865c` voice→sample table (needed for an exact drum
-   instrument map).
+5. Paula interrupt player (handler at `0x1079be`, invoked from
+   `FUN_001073e6`).  It is a 4-channel dispatcher: per tick `0x12819c++`, then
+   per Paula channel it reads the arrangement char (`0x10e2c0[...]`), the
+   drum id (`0x116198`), the chord voice/period/offset (`0x113198`/`0x119198`/
+   `0x11f198`) and writes `AUDxPER/VOL/PT/LEN` (`0xdff0a0..`).  Voice tables sit
+   on an 0x1800 grid (`0x113198 + cat*0x1800` voice, `0x119198 + cat*0x1800`
+   period, sweeps +0x6000), so bass/lead/melody/drum tables are addressed via
+   `lea 0x119198` + `cat*0x1800` rather than separate relocs.  What we do **not**
+   model is the channel stealing/retrigger when >4 voices coincide, and the
+   `0x1285b8`/`0x12860a` per-voice volumes, the `0x125198` envelope and the
+   `0x12827c`/`0x1281d8` chip-buffer pointers.
 6. NOTE: capturing the *original's* Paula output under vamos was attempted and
    abandoned — vamos does not emulate the custom chips and the player is
    interrupt-driven.  See `docs/paula_capture.md`.

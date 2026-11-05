@@ -48,7 +48,7 @@ def _softclip(v, knee=0.8):
 # sample playback on a virtual Paula
 # --------------------------------------------------------------------------
 def _play(buf, smp, ratio, start, dur_samples, gain, loop=False,
-          loop_start=0, loop_len=0):
+          loop_start=0, loop_len=0, smp_off=0):
     n = len(buf)
     m = len(smp)
     if m <= 1 or ratio <= 0:
@@ -57,7 +57,14 @@ def _play(buf, smp, ratio, start, dur_samples, gain, loop=False,
         ls, le = loop_start, loop_start + loop_len
     else:
         ls, le = 0, m
-    pos = 0.0
+    # `smp_off` = start read position in *samples* (the player sets
+    # AUDxPT = sample_base + offset*2).  8SVX is 8-bit, so 1 byte = 1 sample.
+    pos = float(smp_off)
+    if pos >= le:                       # skip into the loop body, not past it
+        if loop and le > ls:
+            pos = ls + (pos - ls) % (le - ls)
+        else:
+            return
     end = start + dur_samples
     i = start
     attack = 64
@@ -389,6 +396,11 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
     step tables rather than a re-derivation of the arrangement.  Drums trigger
     on the table's non-rest steps; the voice-id -> sample mapping comes from
     FUN_0010996c (exact).
+
+    The bass/lead sample-start sweep (`T["bass_amp"]`/`T["lead_amp"]`, the
+    sequencer's phaser oscillator) is applied as a read offset of ``sweep*2``
+    8-bit samples; it is 0 for a comment-less run, so the default mix is
+    unchanged (see docs/sample_options.md).
     """
     if not getattr(song, "tables", None):
         return render_samples(song, path, bank=bank, gain=gain, loops=loops)
@@ -406,15 +418,17 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
     def _rmeta(rel):
         return bank.meta(rel) if rel else _DEF_META
 
-    def hit(i, smp_info, period, vol, dur, gloop=True):
+    def hit(i, smp_info, period, vol, dur, gloop=True, sweep=0):
         if not smp_info:
             return
         smp, rate, ls, ll = smp_info
         r = _period_ratio(period)
         if r == 0.0:
             return
+        # `sweep` is the phaser value in *words*; the sample start moves
+        # `sweep*2` bytes = that many 8-bit samples into the sample.
         _play(buf, smp, r, int(i * step_n), int(dur), vol, loop=gloop,
-              loop_start=ls, loop_len=ll)
+              loop_start=ls, loop_len=ll, smp_off=sweep * 2)
 
     def _smp(sub, name):
         return bank._get("%s/%s" % (sub, name)) if name else None
@@ -456,16 +470,18 @@ def render_tables(song, path, bank=None, gain=0.6, loops=1):
             hit(i, chord_smps[v] if 0 <= v < 6 else chord_smps[0],
                 apply_finetune(T["chord_period"][i], m["finetune"]),
                 gain * 0.5 * _vol_scale(m), step_n * 1.05)
-        # bass
+        # bass (its phaser voice is #2)
         if T["bass_voice"][i] != 0xFFFF:
             hit(i, bass_smp,
                 apply_finetune(T["bass_period"][i], bass_meta["finetune"]),
-                gain * 0.45 * _vol_scale(bass_meta), step_n * 1.05)
-        # lead
+                gain * 0.45 * _vol_scale(bass_meta), step_n * 1.05,
+                sweep=T["bass_amp"][i])
+        # lead (melody voice #1 / arp voice #0; both land in lead_amp)
         if T["lead_voice"][i] != 0xFFFF:
             hit(i, lead_smp,
                 apply_finetune(T["lead_period"][i], lead_meta["finetune"]),
-                gain * 0.36 * _vol_scale(lead_meta), step_n * 1.9)
+                gain * 0.36 * _vol_scale(lead_meta), step_n * 1.9,
+                sweep=T["lead_amp"][i])
     # ---- drums: one-shot, one Paula voice each ---------------------------
     # The player allocates a fixed voice per drum id, so a new hit *retriggers*
     # (cuts) the previous one instead of piling on top -- and it plays the whole

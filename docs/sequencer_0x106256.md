@@ -76,8 +76,8 @@ for pat in 0 .. local_74-1:                     # outer pattern loop (d7)
     drum_a = sel(0,0x11)                        # 0x10861c
     drum_b = sel(1,0x0e)
     if (0x10e946==0) or local_8c!=0 or 0x128198!=0:
-        if 0x10e946==0: mel = sel(3,0x18)
-    else: mel = sel(3,0x0c)
+        if 0x10e946==0: mel = sel(3,0x18)   # 24-entry bank @ 0x10e184
+    else: mel = sel(3,0x0c)                 # 12-entry bank @ 0x10e1e4 (rolled once)
     arp = sel(4,0x27)  -> local_86[3]
     ... strlen() of the four phrases ...
     for step in 0 .. 0x3f:                      # inner step loop (d6)
@@ -99,6 +99,11 @@ recovered from the disassembly:
 * `0x106fa0 / 0x106fc8 / 0x106fde` → `%6` (three melody-interval tables);
 * `0x106ff8` → `&1`; `0x107082` → `&0xf`.
 
+The `0x106f78`..`0x107082` sites only run when `0x10e946 != 0` (the
+melody-variation roll; see below).  One more site sits behind a switch: the
+`SPEECH` scramble `0x10ab38` (called from `0x10640a`), which draws
+`rand()` once per phrase character, occasionally twice.
+
 The jump table at `0x106440` (6 words, base `0x106442`) resolves to:
 cases 1,2 → `local_30 >>= 1`; case 5 → `local_30 *= 2`; 0,3,4 → skip.
 
@@ -110,7 +115,7 @@ cases 1,2 → `local_30 >>= 1`; case 5 → `local_30 *= 2`; 0,3,4 → skip.
 0x11d998 arp   periods   0x117998 arp   voice     0x123998 lead  sweep-off
                          0x11e198 melody periods 0x124998 melody voice 0x125d98 melody phasing
 0x116198 drum  periods   0x11c198 drum  vol       0x122198 drum  off
-0x111170 melody ring (up to 0x29 entries)  -- per-voice ring at 0x1285d8 etc.
+0x111170 melody ring (melody-variation block cache) -- per-voice ring at 0x1285d8 etc.
 0x10ff18 (4 dwords) / 0x10ff38 (4 words)   -- per-voice step counters
 ```
 
@@ -198,7 +203,7 @@ bass   : 0x11a998 period   0x114998 voice  0x120998 sweep-off 0x125d98 phasing
 arp    : 0x11d998 period   0x117998 voice  0x123998 sweep-off 0x127598 phasing
 melody : 0x11d998 period   0x117998 voice  0x123998 sweep-off
 drum   : 0x116198 period   0x11c198 volume 0x122198 offset
-ring   : 0x111170 melody ring (up to 0x29 entries)
+ring   : 0x111170 melody ring (melody-variation block cache)
 ```
 
 Each entry is 1 word per step (`DAT_00128198` steps total).  `0xffff` means
@@ -249,25 +254,50 @@ FINETUNE from the sample filenotes are applied too (see
 modelled too.  What is *not* modelled is the player's 4-channel allocation
 (channel stealing when more than four voices coincide).
 
-## Still outstanding (all behind config switches an `INIT $seed` run leaves off)
+## Config-gated variants (`--arp-lead` / `--bass-phasing` / `--melody-variations` / `--speech`)
 
 The original's CLI/prefs switches (`ACID`, `BB`, `CONT`, `ECHO`, `FILTER`,
 `FREEMELODY`, `SPEECH`, `STOP`, …; see the template string at `0x1040ac`) set
 the config bytes that `FUN_0010538c` folds into the flags `0x10e92c/92e/932/
 93a/93c/93e/940/942/944/946`.  A plain `INIT $seed` run leaves them 0, so the
-verified path is the default one.  The alternate branches:
+verified path is the default one.  The alternate branches are now ported from
+the disassembly behind CLI flags — but they are **unverifiable offline** (the
+original's `LOG=` ground truth only exists for the default configuration), so
+treat them as faithful transcriptions that still need their own ground truth:
 
-* `0x10e946 != 0` **melody-variation roll**: a different melody phrase table
-  (`free_melody`, `0x10e1e4`) plus a ring generator over
-  `melody_intervals_small/major/minor` (`0x10e730/0x10e740/0x10e75c`) written to
-  `0x111170`; it consumes RNG, so it also shifts the title/length.
-* `0x10e92e != 0` lead = arp (instead of melody); `0x10e93e != 0` bass/arp
-  phasing.  `build_tables` implements the melody branch.
-* Speech path (`0x10ab38`/`0x10b0a2`, `SPEECH` only).
-* The player (`0x1079be`, invoked from `FUN_001073e6`): 4-channel Paula
-  dispatcher — channel stealing/retrigger, per-voice volumes
-  (`0x1285b8`/`0x12860a`, default 0x40) and the `0x125198` envelope are not
-  modelled.  Per-voice sample ids come from `0x12865c` (see the instrument map).
+* `0x10e92e != 0` (**`--arp-lead`**) — the lead voice plays the arp phrase
+  (voice `8`, and the bass/arp `'E'`-phasing branch becomes reachable) instead
+  of the melody phrase (voice `7`).  No RNG.
+* `0x10e93e != 0` (**`--bass-phasing`**) — a `'-'` bass/arp step whose lead
+  arrangement char (`+1` / `+3`) matches holds the previous note as a decaying
+  "phase": env `0x10ff1c`/`0x10ff24 *= 9/16` per step (written to the phasing
+  tables `0x125d98`/`0x127598`), gated on `rmix[0] != '-'`.  No RNG.
+* `0x10e946 != 0` (**`--melody-variations`**) — the **free-melody roll**.
+  The melody phrase comes from the 12-entry bank at `0x10e1e4`
+  (`db["melody_b"]`) via `sel(3,0x0c)`, rolled **once** (first pattern); later
+  patterns reuse it (no RNG).  Inside the step loop (melody branch) the note is
+  not looked up from the char table but rolled from
+  `melody_intervals_small/major/minor` (`0x10e730/0x10e740/0x10e75c`; note the
+  binary **cross-wires the chord quality**: a minor chord rolls the *major*
+  degree table, `0x106fb6`) plus a `(rand()&1)*12` octave, retried until the
+  interval to the previous note exceeds a growing reach window `$3c`
+  (`0x106f78..0x10708c`).  The notes of the first block are cached in the ring
+  `0x111170` (write index `$46`, cursor `$38`); at a block boundary
+  (`$38 % $44 == 0`, `$38 != 0`, `$44` = `s.timing`) the ring is rewound and
+  replayed.  It consumes RNG heavily, so it shifts the whole song.
+* `0x10e942 != 0` (**`--speech`**) — the `SPEECH` phase.  `0x10ab38` copies the
+  third arrangement phrase (`song_structures[3g+2]`) and scrambles it with the
+  RNG, `0x10b0a2` then turns the resulting letters into playback notes via the
+  per-letter pattern table `0x10e408` (mis-named `db["free_melody"]`; 21
+  entries, 64 bytes each — one per letter `a`..`u`).  We port the *RNG scramble*
+  (`Generator.speech_scramble`) only: the Amiga `speech.library` synthesis and
+  the follow-up speech-sample picks `FUN_00109bfa(9..13)` depend on library
+  state we cannot reproduce, so `--speech` songs are **not** expected to match.
+
+**Still not ported:** the player (`0x1079be`, invoked from `FUN_001073e6`):
+4-channel Paula dispatcher — channel stealing/retrigger, per-voice volumes
+(`0x1285b8`/`0x12860a`, default 0x40) and the `0x125198` envelope are not
+modelled.  Per-voice sample ids come from `0x12865c` (see the instrument map).
 
 ## Instrument map (recovered from `FUN_001095ea` / `FUN_0010996c`)
 

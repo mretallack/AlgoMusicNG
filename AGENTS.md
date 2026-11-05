@@ -145,13 +145,19 @@ Outstanding (this is the work list):
    instrument choice is now exact too (see the recovered
    `FUN_001095ea`/`FUN_0010996c` voice→sample map in
    `docs/sequencer_0x106256.md`).  
-2. **Config-gated sequencer variants** — the melody-variation roll
-   (`0x10e946`), arp lead (`0x10e92e`) and bass/arp phasing (`0x10e93e`) are all
-   behind CLI/prefs switches (`FREEMELODY` etc., template at `0x1040ac`) that a
-   plain `INIT $seed` run leaves off, so `build_tables` implements only the
-   default (melody) branch.  The interval tables are already in `db.json`
-   (`melody_intervals_*`, `free_melody`) if this is ever ported; it *consumes
-   RNG*, so it would shift the title/length and needs its own ground truth.
+2. ~~**Config-gated sequencer variants**~~ — **ported** behind CLI flags
+   (`--arp-lead` `0x10e92e`, `--bass-phasing` `0x10e93e`,
+   `--melody-variations` `0x10e946`, `--speech` `0x10e942`).  The melody
+   phrase bank for `0x10e946` is the 12-entry table at `0x10e1e4`
+   (`db["melody_b"]`, rolled with `sel(3,0x0c)` once); note `db["free_melody"]`
+   (`0x10e408`) is *not* a melody bank — it is the 21-entry speech
+   letter-pattern table (`0x10ab38`/`0x10b0a2`).  These branches consume RNG
+   (so they shift the title/length) and are **unverifiable offline**: the
+   original's `LOG=` ground truth only exists for the default configuration.
+   They are faithful transcriptions that still need their own ground truth;
+   `--speech` models only the `0x10ab38` RNG scramble (the `speech.library`
+   synthesis and the speech-sample picks `FUN_00109bfa(9..13)` are not
+   modelled).  See `docs/sequencer_0x106256.md`.
 3. **Sample-DB parsing** `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`
    (filenotes → VOLUME/FINETUNE/PHASER…) — **done** for VOLUME + normal-sample
    FINETUNE (+ the speech/breakbeat `(30000-ft)/bpm` rule).  The filenotes live
@@ -168,7 +174,10 @@ Outstanding (this is the work list):
    seed picks a phaser-armed acid sample, so our comment-less ground truth only
    holds with the phaser **off** — we therefore do not draw that RNG.  See
    `docs/sample_options.md`.
-4. Speech path `FUN_0010ab38` / `FUN_0010b0a2` (only when `SPEECH` is set).
+4. ~~Speech path `FUN_0010ab38` / `FUN_0010b0a2` (only when `SPEECH` is set)~~
+   — the RNG scramble of `FUN_0010ab38` is ported (`--speech`,
+   `Generator.speech_scramble`); the `speech.library` synthesis and the
+   20 conditional speech-sample draws `FUN_00109bfa(9..13)` are not modelled.
 5. Paula interrupt player (handler at `0x1079be`, invoked from
    `FUN_001073e6`).  It is a 4-channel dispatcher: per tick `0x12819c++`, then
    per Paula channel it reads the arrangement char (`0x10e2c0[...]`), the
@@ -187,8 +196,10 @@ Outstanding (this is the work list):
 **Verification gate:** `make verify` runs all checks and must pass:
 * `python3 tools/verify_groundtruth.py` → `20/20 seeds match` (name + length vs
   the original's `LOG=` line); add more seeds from `docs/groundtruth.md`.
-* `python3 tools/verify_tables.py` → `10/10 seeds OK` (self-consistency of
-  `Song.build_tables`: lengths, determinism, period/voice ranges).
+* `python3 tools/verify_tables.py` → `10/10 seeds OK`, `6/6 variant configs OK`
+  (self-consistency of `Song.build_tables`: lengths, determinism, period/voice
+  ranges; plus the `--arp-lead`/`--bass-phasing`/`--melody-variations`/`--speech`
+  variants build cleanly).
 * `python3 tools/verify_comments.py` → `PASS` (filenote parser, the FINETUNE
   period formula vs the guide's table, the comment cache vs the LHA, and the
   phaser triangle / sweep-off table fill).

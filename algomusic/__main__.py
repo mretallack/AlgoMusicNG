@@ -25,6 +25,18 @@ def main(argv=None):
     p.add_argument("--filenotes", action="store_true",
                    help="apply the sample filenotes (VOLUME/FINETUNE and the "
                         "PHASER RNG); NOTE: the phaser changes the song")
+    p.add_argument("--arp-lead", action="store_true",
+                   help="config variant 0x10e92e: lead voice plays the arp "
+                        "phrase instead of the melody")
+    p.add_argument("--bass-phasing", action="store_true",
+                   help="config variant 0x10e93e: bass/arp 'E' phasing")
+    p.add_argument("--melody-variations", action="store_true",
+                   help="config variant 0x10e946: melody-variation roll "
+                        "(CONSUMES RNG, so it changes the song)")
+    p.add_argument("--speech", action="store_true",
+                   help="config switch 0x10e942 (SPEECH): the FUN_0010ab38 "
+                        "speech scramble RNG (CONSUMES RNG; the speech.library "
+                        "synthesis itself is not modelled)")
     args = p.parse_args(argv)
 
     if args.info:
@@ -47,7 +59,11 @@ def main(argv=None):
     gen = Generator(seed)
     for i in range(args.count):
         song = gen.generate(bpm=args.bpm, finetune=args.finetune,
-                            filenotes=args.filenotes)
+                            speech=args.speech,
+                            filenotes=args.filenotes,
+                            arp_lead=args.arp_lead,
+                            bass_phasing=args.bass_phasing,
+                            melody_variations=args.melody_variations)
         out = args.out if args.count == 1 else args.out.replace(".wav", "_%d.wav" % (i + 1))
         if args.synth:
             render(song, out)

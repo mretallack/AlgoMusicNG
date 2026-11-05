@@ -32,10 +32,10 @@ VOICES = {
 }
 
 
-def check(seed):
+def check(seed, **kw):
     g = Generator(seed)
-    s = g.generate()
-    s2 = Generator(seed).generate()
+    s = g.generate(**kw)
+    s2 = Generator(seed).generate(**kw)
     n = s.total_steps
     fails = []
     if n != s.num_patterns * 64:
@@ -64,6 +64,21 @@ def check(seed):
     return fails
 
 
+# Config-gated sequencer variants (see docs/sequencer_0x106256.md).  These are
+# unverifiable offline (the original's LOG= line only exists for a default
+# run), so we only check self-consistency + that each switch actually does
+# something distinct.
+VARIANTS = [
+    {},
+    {"arp_lead": True},
+    {"bass_phasing": True},
+    {"melody_variations": True},
+    {"arp_lead": True, "bass_phasing": True},
+    {"melody_variations": True, "arp_lead": True},
+    {"speech": True},
+]
+
+
 def main():
     total_fail = 0
     for seed in SEEDS:
@@ -75,8 +90,48 @@ def main():
                 print("   -", f)
         else:
             print("OK   $%08x" % seed)
+
+    # --- config-gated variants -------------------------------------------
+    vfail = 0
+    for seed in SEEDS:
+        base = Generator(seed).generate()
+        for kw in VARIANTS:
+            if not kw:
+                continue
+            name = "+".join(sorted(kw))
+            fails = check(seed, **kw)
+            if fails:
+                print("FAIL $%08x [%s]" % (seed, name))
+                for f in fails:
+                    print("   -", f)
+                vfail += 1
+                continue
+            # default spending of RNG is unchanged, so lengths must match
+            if Generator(seed).generate(**kw).total_steps != base.total_steps:
+                print("FAIL $%08x [%s] step count changed" % (seed, name))
+                vfail += 1
+    if vfail:
+        total_fail += 1
+        print("%d variant checks failed" % vfail)
+    else:
+        print("%d/%d variant configs OK" % (len(VARIANTS) - 1, len(VARIANTS) - 1))
+
+    # the arp-lead switch must actually route the lead voice to the arp id (8)
+    if any(8 in set(Generator(sd).generate(arp_lead=True).tables["lead_voice"])
+           for sd in SEEDS):
+        print("OK   arp_lead routes the lead to voice 8")
+    else:
+        print("FAIL arp_lead never produced lead voice 8")
+        total_fail += 1
+    # speech consumes RNG on the global stream -> a different title
+    if Generator(0x4002).generate(speech=True).name != Generator(0x4002).generate().name:
+        print("OK   speech changes the song (consumes RNG)")
+    else:
+        print("FAIL speech did not change the song")
+        total_fail += 1
+
     if total_fail:
-        print("%d/%d seeds failed" % (total_fail, len(SEEDS)))
+        print("%d check group(s) failed" % total_fail)
         return 1
     print("%d/%d seeds OK" % (len(SEEDS), len(SEEDS)))
     return 0

@@ -147,6 +147,8 @@ class Song:
         self.timing = 0         # local_90
         self.tables = None      # note-level playback tables (build_tables)
         self.lead_mode = 0      # _DAT_0010e92e: 0 (default) = melody, else arp
+        self.bass_phasing = 0   # _DAT_0010e93e: bass/arp "E" phasing variant
+        self.melody_var = 0     # _DAT_0010e946: melody-variation roll
         self.filenotes = False  # consume phaser RNG from the sample filenotes
         self.phaser = [(0, 0, 0, 0)] * 3   # (depth, speed, offset, dir) per voice
 
@@ -391,6 +393,38 @@ class Generator:
         _ph_off = [s.phaser[v][2] for v in range(3)]
         _ph_dir = [s.phaser[v][3] for v in range(3)]
 
+        # `0x125198`..`0x128198` is memset to 0x40 at sequencer start, so the
+        # bass/lead phase envelopes (0x125d98 / 0x127598) default to 0x40.
+        for i in range(total):
+            T["bass_phase"][i] = 0x40
+            T["lead_phase"][i] = 0x40
+
+        # `0x10e93e` bass/arp phasing state (globals 0x10ff1c/2c/34/24).
+        rmix = db["rhythm_mix"][s.rhythm_mix] if "rhythm_mix" in db else ""
+        bass_base = 0
+        bass_phase = 0
+        arp_base = 0
+        arp_phase = 0
+        arp_amp_mem = 0
+
+        def _rmix_char(i):
+            return rmix[i] if 0 <= i < len(rmix) else "-"
+
+        # `0x10e946` melody-variation state.  The ring 0x111170 holds the notes
+        # of the *first* variation block; every following block (a boundary is
+        # reached when the melody-note counter `$38` is a non-zero multiple of
+        # the timing divider `$44` = s.timing) replays it verbatim.  The flags
+        # `$48`/`$46`/`$40` mirror the binary's local_8c/local_8e/local_94.
+        mel_ring = [0] * 8192
+        mel_ring_n = s.timing or 1
+        mel_flag = 0          # $48: set once a block boundary has been hit
+        mel_ridx = 0          # $46: ring read/write cursor
+        mel_ctr = 0           # $38: melody-note counter
+        mel_prev = -100       # $40: last generated note
+        iv_small = db["melody_intervals_small"]
+        iv_major = db["melody_intervals_major"]
+        iv_minor = db["melody_intervals_minor"]
+
         for p in range(s.num_patterns):
             pat = s.patterns[p]
             comp = pat["drums"]           # drums_a  (chord comping, '1'..'9')
@@ -436,6 +470,15 @@ class Generator:
                     local_40 += 4
                     if L + 1 <= local_40:
                         local_40 = 3
+                    # 0x106788: melody-variation block boundary -- a new block
+                    # starts when the melody-note counter is a non-zero
+                    # multiple of the timing divider; the ring is rewound and
+                    # from then on notes are replayed instead of rolled.
+                    if (s.melody_var and mel_ctr
+                            and mel_ctr % mel_ring_n == 0):
+                        mel_flag = 1
+                        mel_ridx = 0
+                        mel_ctr = 0
 
                 if (st & m_comp) == 0:
                     i_comp = 0
@@ -465,15 +508,30 @@ class Generator:
                         T["chord_voice"][step_no] = 0 if f == 1 else 1
 
                 # ---- bass -------------------------------------------
+                # `0x10e93e` variant: a '-' bass step whose lead-arrangement
+                # char (+1) is 'E' holds the previous bass note as a decaying
+                # "phase" (period from the last bass base, env *9/16 each step).
                 cb = bassp[i_bass]
                 if cb == "-":
-                    T["bass_voice"][step_no] = 0xFFFF
+                    if (s.bass_phasing and len(arr1) > p * 4 + 1
+                            and arr1[p * 4 + 1] == "E"
+                            and _rmix_char(0) != "-"):
+                        bass_phase = (bass_phase * 9) >> 4
+                        T["bass_phase"][step_no] = bass_phase & 0xFF
+                        T["bass_period"][step_no] = note_to_period(
+                            _s16(bass_base + local_5c - 0xC))
+                        T["bass_voice"][step_no] = 6
+                        T["bass_amp"][step_no] = _ph_off[2]
+                    else:
+                        T["bass_voice"][step_no] = 0xFFFF
                 else:
                     sem = ct_at(ord(cb), is_minor)
+                    bass_base = sem                     # 0x10ff2c
                     T["bass_period"][step_no] = note_to_period(
                         _s16(sem + local_5c - 0xC))
                     T["bass_voice"][step_no] = 6
                     T["bass_amp"][step_no] = _ph_off[2]   # local_86[2]
+                    bass_phase = 0x40                   # 0x10ff1c
 
                 # ---- drums ------------------------------------------
                 dc = local_8[st & 0xF]
@@ -496,8 +554,55 @@ class Generator:
                 letter = arr1[p * 4 + 3] if len(arr1) > p * 4 + 3 else "\0"
                 if s.lead_mode == 0 or letter not in ("A", "C", "[", "]", "T"):
                     # melody branch (0x10e92e == 0 in a default run)
+                    if s.melody_var:
+                        # 0x106f46: counted for every melody step, rests too
+                        mel_ctr += 1
                     if mel[i_mel] == "-":
                         T["lead_voice"][step_no] = 0xFFFF
+                    elif s.melody_var:
+                        # 0x10e946 free-melody roll.  The first block rolls
+                        # notes on the global RNG stream (see docs); later
+                        # blocks read them back from the ring.
+                        if mel_flag == 0:
+                            note = local_5c
+                            reach = 6       # $3c
+                            phase = 0       # $3a
+                            while True:
+                                # roll a quality 0..4 (the binary retries
+                                # while it equals 5, which %5 never yields)
+                                quality = self.rng.rand() % 5
+                                if quality < 3 or (st & 7) == 0:
+                                    iv = iv_small
+                                elif is_minor:
+                                    # N.B. the binary cross-wires the chord
+                                    # quality: minor chords roll the *major*
+                                    # degree table and vice versa (0x106fb6).
+                                    iv = iv_major
+                                else:
+                                    iv = iv_minor
+                                note = (local_5c
+                                        + (self.rng.rand() & 1) * 12
+                                        + iv[self.rng.rand() % 6])
+                                phase += 1
+                                if phase > 0x28:
+                                    reach += 1
+                                    phase = 0
+                                diff = abs(note - mel_prev)
+                                if reach < diff and mel_prev != -100:
+                                    continue
+                                if (mel_prev == note
+                                        and (self.rng.rand() & 0xF) != 1):
+                                    continue
+                                break
+                            mel_prev = note
+                            mel_ring[mel_ridx] = note
+                            mel_ridx += 1
+                        else:
+                            note = mel_ring[mel_ridx]
+                            mel_ridx += 1
+                        T["lead_period"][step_no] = note_to_period(_s16(note))
+                        T["lead_voice"][step_no] = 7
+                        T["lead_amp"][step_no] = _ph_off[1]   # local_86[1]
                     else:
                         sem = ct_at(local_88 + ord(mel[i_mel]), is_minor)
                         T["lead_period"][step_no] = note_to_period(
@@ -505,14 +610,29 @@ class Generator:
                         T["lead_voice"][step_no] = 7
                         T["lead_amp"][step_no] = _ph_off[1]   # local_86[1]
                 else:
-                    if arp[i_arp] == "-":
-                        T["lead_voice"][step_no] = 0xFFFF
+                    aa = arp[i_arp]
+                    if aa == "-":
+                        # `0x10e93e`: hold the previous arp note as a decaying
+                        # phase when 0x10e93e is set (its +3 arrangement char is
+                        # never '\0' inside this branch) and rmix[0] != '-'.
+                        if s.bass_phasing and _rmix_char(0) != "-":
+                            arp_phase = (arp_phase * 9) >> 4
+                            T["lead_phase"][step_no] = arp_phase & 0xFF
+                            T["lead_period"][step_no] = note_to_period(
+                                _s16(arp_base + local_5c))
+                            T["lead_voice"][step_no] = 8
+                            T["lead_amp"][step_no] = arp_amp_mem
+                        else:
+                            T["lead_voice"][step_no] = 0xFFFF
                     else:
-                        sem = ct_at(ord(arp[i_arp]), is_minor)
+                        sem = ct_at(ord(aa), is_minor)
+                        arp_base = sem                      # 0x10ff34
                         T["lead_period"][step_no] = note_to_period(
                             _s16(sem + local_5c))
                         T["lead_voice"][step_no] = 8
+                        arp_amp_mem = _ph_off[0]            # local_20
                         T["lead_amp"][step_no] = _ph_off[0]   # local_86[0]
+                        arp_phase = 0x40                    # 0x10ff24
 
                 step_no += 1
                 i_comp += 1
@@ -522,6 +642,35 @@ class Generator:
             # /step
         # /pattern
         return T
+
+    # ---- FUN_0010ab38 : speech phrase scramble (consumes RNG) ---------
+    def speech_scramble(self, n):
+        """RNG-visible part of the `SPEECH` phase (0x10ab38).
+
+        The binary copies the third arrangement phrase into a buffer and then
+        walks it once, choosing a replacement letter per character from the
+        RNG.  Each iteration consumes one ``rand()`` (or two when the first
+        one's low bits select the "rewrite" arm).  Only this RNG consumption
+        is modelled: the Amiga ``speech.library`` synthesis that follows, and
+        the conditional speech-sample picks ``FUN_00109bfa(9..13)``, depend on
+        library state we cannot reproduce, so they are not ported.  The song
+        produced in `--speech` mode is therefore *not* expected to match the
+        original bit-for-bit; only the deterministic scramble stream is.
+        """
+        rng = self.rng
+        local_a = 0
+        for i in range(n):
+            if local_a < 0x20:
+                r = rng.rand()
+                if not ((r & 3) == 0 and local_a > 3 and i > 0xB):
+                    local_a += 1
+                    continue
+            # LAB_0010aba6
+            if (i & 3) == 2 or i >= n - 4:
+                local_a += 1
+                continue
+            rng.rand()
+            local_a = 0
 
     # ---- FUN_001095ea : sample-bank pick (consumes RNG) ----------------
     def sample_pick(self, drawers=None):
@@ -554,12 +703,16 @@ class Generator:
         return picks
 
     def generate(self, bpm=160, finetune=100, speech=False, drawers=None,
-                 filenotes=False):
+                 filenotes=False, arp_lead=False, bass_phasing=False,
+                 melody_variations=False):
         s = Song()
         s.seed = self.seed
         s.bpm = bpm
         s.finetune = finetune
         s.filenotes = filenotes
+        s.lead_mode = 1 if arp_lead else 0        # _DAT_0010e92e
+        s.bass_phasing = 1 if bass_phasing else 0  # _DAT_0010e93e
+        s.melody_var = 1 if melody_variations else 0  # _DAT_0010e946
 
         # === FUN_001095ea : sample-bank pick, *before* the generator ======
         # (called from FUN_00105caa, after srand(), before the play loop)
@@ -611,6 +764,11 @@ class Generator:
         step = 10 * (ord(phrase[0]) - 0x30) + (ord(phrase[1]) - 0x30)
         s.num_patterns = len(s.arrangement_phrases[0]) >> 2
 
+        # `0x10e942` (SPEECH): scramble the speech phrase first, consuming
+        # RNG on the global stream before the timing roll below.   (0x10640a)
+        if speech:
+            self.speech_scramble(len(s.arrangement_phrases[2]))
+
         # optional halve/double of the step period                (0x106426)
         if 4 < step < 0x40:
             v = rng.rand() & 7
@@ -636,13 +794,27 @@ class Generator:
         # ---- per-pattern selectors (outer loop) -------------------------
         drums_a = self.db["drums_a"]
         drums_b = self.db["drums_b"]
-        melody_bank = self.db["melody_a"] if not speech else self.db["melody_b"]
         arp_bank = self.db["arps"]
+        # `0x10e946`: the melody phrase comes from the 12-entry bank at
+        # `PTR_FUN_0010e1e4` (db["melody_b"]) instead of the 24-entry bank at
+        # `PTR_FUN_0010e184` (db["melody_a"]).  The `SPEECH` switch does not
+        # touch the melody bank; its letter patterns live at `PTR_FUN_0010e408`
+        # (mis-named db["free_melody"]; see docs/sequencer_0x106256.md).
+        melody_bank = self.db["melody_b"] if melody_variations else self.db["melody_a"]
 
+        mel_index = None
         for _p in range(s.num_patterns):
             drum_a = self.sel.sel(0, 0x11)     # FUN_0010861c(0,0x11)
             drum_b = self.sel.sel(1, 0x0E)     # FUN_0010861c(1,0x0e)
-            mel = self.sel.sel(3, 0x18)        # FUN_0010861c(3,0x18)
+            if melody_variations:
+                # 0x106584: the free-melody phrase is rolled only once, on the
+                # first pattern (local_8c == 0 and the global step == 0), over
+                # the first 12 entries; later patterns reuse it with no RNG.
+                if mel_index is None:
+                    mel_index = self.sel.sel(3, 0x0C)
+                mel = mel_index
+            else:
+                mel = self.sel.sel(3, 0x18)    # FUN_0010861c(3,0x18)
             arp = self.sel.sel(4, 0x27)        # FUN_0010861c(4,0x27)
             s.patterns.append({
                 "chord": phrase,

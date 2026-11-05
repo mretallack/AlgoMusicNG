@@ -245,29 +245,29 @@ chord/bass/lead pitch and every onset/rest are therefore exact, and
 instruments are chosen from the picked sample-drawer entries exactly as
 `FUN_001095ea` does (see the instrument map below).  Per-sample VOLUME and
 FINETUNE from the sample filenotes are applied too (see
-`docs/sample_options.md`).  What is *not* yet modelled is the player's
-16-voice allocation / ring.
+`docs/sample_options.md`).  The PHASERDEPTH/PHASERSPEED sample-start sweep is
+modelled too.  What is *not* modelled is the player's 4-channel allocation
+(channel stealing when more than four voices coincide).
 
-## Still outstanding
+## Still outstanding (all behind config switches an `INIT $seed` run leaves off)
 
-* The `0x10e946 != 0` **melody-roll variant** (melody interval tables
-  `0x10e730/0x10e740/0x10e75c`, ring `0x111170`) — behind a config bit that a
-  plain `INIT $seed` run leaves 0.
+The original's CLI/prefs switches (`ACID`, `BB`, `CONT`, `ECHO`, `FILTER`,
+`FREEMELODY`, `SPEECH`, `STOP`, …; see the template string at `0x1040ac`) set
+the config bytes that `FUN_0010538c` folds into the flags `0x10e92c/92e/932/
+93a/93c/93e/940/942/944/946`.  A plain `INIT $seed` run leaves them 0, so the
+verified path is the default one.  The alternate branches:
+
+* `0x10e946 != 0` **melody-variation roll**: a different melody phrase table
+  (`free_melody`, `0x10e1e4`) plus a ring generator over
+  `melody_intervals_small/major/minor` (`0x10e730/0x10e740/0x10e75c`) written to
+  `0x111170`; it consumes RNG, so it also shifts the title/length.
+* `0x10e92e != 0` lead = arp (instead of melody); `0x10e93e != 0` bass/arp
+  phasing.  `build_tables` implements the melody branch.
 * Speech path (`0x10ab38`/`0x10b0a2`, `SPEECH` only).
-* `0x10e92e` (lead = melody vs arp) and `0x10e93e` (bass/arp phasing) alternate
-  modes; `build_tables` implements the melody branch and the phasing branch is
-  not reproduced.
-* The player `0x1073e6`: 16-voice allocation and the per-voice ring at
-  `0x1285d8`.  Per-voice **volume** defaults to `0x12860a=0x40`
-  (set in `FUN_001095ea`) and is overridden by a sample's `VOLUME` filenote.
-* PHASERDEPTH/PHASERSPEED sample-start sweep (acid/melody/bass): the
-  sequencer-side triangle oscillator (`0x1068f2`) is reproduced by
-  `Song.build_tables()` (`phaser_step`), writing the per-step word offset into
-  `0x120998`/`0x123998` when `generate(filenotes=True)` armed a voice, and
-  `render_tables()` now applies it as a sample-start read offset.  (The player
-  reads the offset at `0x107d22`, e.g. `0x11f198` for the chord voice; the
-  bass/lead tables are reached on the same 0x1800 grid — see
-  `docs/sample_options.md`.)
+* The player (`0x1079be`, invoked from `FUN_001073e6`): 4-channel Paula
+  dispatcher — channel stealing/retrigger, per-voice volumes
+  (`0x1285b8`/`0x12860a`, default 0x40) and the `0x125198` envelope are not
+  modelled.  Per-voice sample ids come from `0x12865c` (see the instrument map).
 
 ## Instrument map (recovered from `FUN_001095ea` / `FUN_0010996c`)
 

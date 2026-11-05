@@ -145,8 +145,13 @@ Outstanding (this is the work list):
    instrument choice is now exact too (see the recovered
    `FUN_001095ea`/`FUN_0010996c` voice→sample map in
    `docs/sequencer_0x106256.md`).  
-2. **`0x10e946 != 0` melody-roll variant** and `0x10e92e`/`0x10e93e` (arp vs
-   melody lead; bass/arp phasing) — not exercised by a plain `INIT $seed` run.
+2. **Config-gated sequencer variants** — the melody-variation roll
+   (`0x10e946`), arp lead (`0x10e92e`) and bass/arp phasing (`0x10e93e`) are all
+   behind CLI/prefs switches (`FREEMELODY` etc., template at `0x1040ac`) that a
+   plain `INIT $seed` run leaves off, so `build_tables` implements only the
+   default (melody) branch.  The interval tables are already in `db.json`
+   (`melody_intervals_*`, `free_melody`) if this is ever ported; it *consumes
+   RNG*, so it would shift the title/length and needs its own ground truth.
 3. **Sample-DB parsing** `FUN_00109c72` / `FUN_00109dea` / `FUN_00109fe0`
    (filenotes → VOLUME/FINETUNE/PHASER…) — **done** for VOLUME + normal-sample
    FINETUNE (+ the speech/breakbeat `(30000-ft)/bpm` rule).  The filenotes live
